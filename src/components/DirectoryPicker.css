@@ -1,0 +1,163 @@
+.directory-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.directory-picker__row {
+  display: flex;
+  gap: 8px;
+}
+
+.directory-picker__select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.directory-picker__select:hover {
+  border-color: #0ea5e9;
+}
+
+.directory-picker__select:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.directory-picker__button {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.directory-picker__button:hover {
+  background: #f1f5f9;
+  border-color: #0ea5e9;
+}
+
+.directory-picker__button:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.directory-picker__path {
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #64748b;
+  word-break: break-all;
+}
+
+.directory-picker__options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.directory-picker__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.directory-picker__checkbox {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.directory-picker__checkbox:checked {
+  background-color: #0ea5e9;
+  border-color: #0ea5e9;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .directory-picker__select {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+  }
+
+  .directory-picker__button {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+  }
+
+  .directory-picker__button:hover {
+    background: #334155;
+    border-color: #0ea5e9;
+  }
+
+  .directory-picker__path {
+    background: #1e293b;
+    border-color: #334155;
+    color: #94a3b8;
+  }
+
+  .directory-picker__options {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .directory-picker__option {
+    color: #e2e8f0;
+  }
+
+  .directory-picker__checkbox {
+    border-color: #334155;
+    background: #1e293b;
+  }
+
+  .directory-picker__checkbox:checked {
+    background-color: #0ea5e9;
+    border-color: #0ea5e9;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .directory-picker__select,
+  .directory-picker__button,
+  .directory-picker__path,
+  .directory-picker__options,
+  .directory-picker__checkbox {
+    border-width: 2px;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .directory-picker__select,
+  .directory-picker__button,
+  .directory-picker__checkbox {
+    transition: none;
+  }
+}

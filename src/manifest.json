@@ -1,0 +1,82 @@
+{
+  "manifest_version": 3,
+  "name": "Insight Clip",
+  "version": "1.0.0",
+  "description": "UX Research Screenshot Extension for capturing screenshots with contextual annotations and voice notes",
+  "author": "UX Research Team",
+
+  "permissions": ["activeTab", "storage", "downloads", "scripting", "tabs"],
+
+  "host_permissions": ["http://*/*", "https://*/*"],
+
+  "background": {
+    "service_worker": "background/background.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content/content.js"],
+      "css": ["content/styles.css"],
+      "run_at": "document_end",
+      "all_frames": false
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Insight Clip - UX Research Screenshots",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "32": "assets/icons/icon-32.png",
+      "48": "assets/icons/icon-48.png",
+      "128": "assets/icons/icon-128.png"
+    }
+  },
+
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  },
+
+  "commands": {
+    "capture-screenshot": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S",
+        "windows": "Alt+Shift+S",
+        "linux": "Alt+Shift+S"
+      },
+      "description": "Capture screenshot with annotation"
+    },
+    "toggle-mode": {
+      "suggested_key": {
+        "default": "Alt+Shift+M",
+        "mac": "Alt+Shift+M",
+        "windows": "Alt+Shift+M",
+        "linux": "Alt+Shift+M"
+      },
+      "description": "Toggle between screenshot and annotation mode"
+    }
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/icons/*", "content/styles.css"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline';"
+  },
+
+  "minimum_chrome_version": "88",
+
+  "options_page": "popup/popup.html",
+
+  "short_name": "Insight Clip"
+}
