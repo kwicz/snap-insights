@@ -39,13 +39,35 @@ module.exports = (env, argv) => {
         },
         {
           test: /\.css$/,
-          use: [
-            isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
+          oneOf: [
             {
-              loader: 'css-loader',
-              options: {
-                sourceMap: isDevelopment,
-              },
+              // CSS files imported in content scripts
+              include: [
+                path.resolve(__dirname, 'src/content'),
+                path.resolve(__dirname, 'src/components'),
+              ],
+              issuer: /content\.ts$/,
+              use: [
+                'to-string-loader',
+                {
+                  loader: 'css-loader',
+                  options: {
+                    sourceMap: isDevelopment,
+                  },
+                },
+              ],
+            },
+            {
+              // Regular CSS files for popup and other components
+              use: [
+                isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
+                {
+                  loader: 'css-loader',
+                  options: {
+                    sourceMap: isDevelopment,
+                  },
+                },
+              ],
             },
           ],
         },

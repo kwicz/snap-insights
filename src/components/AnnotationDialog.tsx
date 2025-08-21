@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AnnotationData } from '@/types';
+import './AnnotationDialog.css';
 
 export interface AnnotationDialogProps {
   isOpen: boolean;
@@ -171,19 +172,13 @@ export const AnnotationDialog: React.FC<AnnotationDialogProps> = ({
       onKeyDown={handleKeyDown}
     >
       <div className='annotation-dialog__container'>
-        {/* Header */}
-        <div className='annotation-dialog__header'>
-          <h3 id='dialog-title' className='annotation-dialog__title'>
-            Add Annotation
-          </h3>
-          <button
-            className='annotation-dialog__close'
-            onClick={handleCancel}
-            aria-label='Close dialog'
-          >
-            ×
-          </button>
-        </div>
+        <button
+          className='annotation-dialog__close'
+          onClick={handleCancel}
+          aria-label='Close dialog'
+        >
+          ×
+        </button>
 
         {/* Content */}
         <div className='annotation-dialog__content'>
@@ -213,24 +208,18 @@ export const AnnotationDialog: React.FC<AnnotationDialogProps> = ({
         {/* Actions */}
         <div className='annotation-dialog__actions'>
           <button
-            className='annotation-dialog__button annotation-dialog__button--secondary'
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-          <button
             className='annotation-dialog__button annotation-dialog__button--primary'
             onClick={handleSave}
             disabled={!isValid}
           >
-            Save
+            Capture
           </button>
         </div>
 
         {/* Keyboard shortcuts hint */}
         <div className='annotation-dialog__hint'>
           <small>
-            Press <kbd>Ctrl+Enter</kbd> to save, <kbd>Esc</kbd> to cancel
+            Press <kbd>Ctrl+Enter</kbd> to capture, <kbd>Esc</kbd> to close
           </small>
         </div>
       </div>

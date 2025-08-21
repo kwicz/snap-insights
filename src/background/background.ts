@@ -3,8 +3,66 @@ import {
   ExtensionSettings,
   ScreenshotData,
   ExtensionMessage,
+  MarkerColorSettings,
 } from '../types';
 import { ExtensionError } from '../types';
+
+// Default marker settings
+const DEFAULT_MARKER_SETTINGS: MarkerColorSettings = {
+  color: '#FF0000',
+  opacity: 0.8,
+  size: 20,
+  style: 'solid',
+};
+
+// Draw marker on screenshot
+async function drawMarkerOnScreenshot(
+  dataUrl: string,
+  coordinates: { x: number; y: number }
+): Promise<string> {
+  // Create an image from the screenshot
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+
+  // Create a canvas to draw on
+  const canvas = new OffscreenCanvas(img.width, img.height);
+  const ctx = canvas.getContext('2d')!;
+
+  // Draw the screenshot
+  ctx.drawImage(img, 0, 0);
+
+  // Get marker settings
+  const markerSettings = DEFAULT_MARKER_SETTINGS;
+  const size = markerSettings.size;
+  const offset = size / 2;
+
+  // Draw the marker
+  ctx.beginPath();
+  ctx.arc(coordinates.x, coordinates.y, size / 2, 0, 2 * Math.PI);
+  ctx.fillStyle = markerSettings.color;
+  ctx.globalAlpha = markerSettings.opacity;
+  ctx.fill();
+
+  // Add white border
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Reset opacity
+  ctx.globalAlpha = 1;
+
+  // Convert to data URL
+  const blob = await canvas.convertToBlob({ type: 'image/png' });
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
 
 interface CaptureResult {
   success: boolean;
@@ -34,7 +92,7 @@ export async function handleScreenshotCapture(
       return { success: false, error: 'No active tab found' };
     }
 
-    // Capture screenshot
+    // Capture the visible tab
     const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
       format: 'png',
     });
@@ -114,10 +172,12 @@ export async function handleSettingsUpdate(
 /**
  * Get current extension settings
  */
-export async function handleGetSettings(): Promise<{ settings: ExtensionSettings }> {
+export async function handleGetSettings(): Promise<{
+  settings: ExtensionSettings;
+}> {
   try {
     const { settings } = await chrome.storage.sync.get('settings');
-    
+
     // Return default settings if none exist
     if (!settings) {
       const defaultSettings: ExtensionSettings = {
@@ -125,7 +185,7 @@ export async function handleGetSettings(): Promise<{ settings: ExtensionSettings
         markerColor: {
           color: '#FF0000',
           opacity: 0.8,
-          size: 5,
+          size: 20,
           style: 'solid',
         },
         saveLocation: {
@@ -151,11 +211,11 @@ export async function handleGetSettings(): Promise<{ settings: ExtensionSettings
           maxLength: 500,
         },
       };
-      
+
       await chrome.storage.sync.set({ settings: defaultSettings });
       return { settings: defaultSettings };
     }
-    
+
     return { settings };
   } catch (error) {
     throw new ExtensionError(
@@ -170,13 +230,18 @@ export async function handleGetSettings(): Promise<{ settings: ExtensionSettings
 /**
  * Get storage statistics
  */
-export async function handleGetStorageStats(): Promise<{ stats: { totalScreenshots: number; lastSaved: number | null } }> {
+export async function handleGetStorageStats(): Promise<{
+  stats: { totalScreenshots: number; lastSaved: number | null };
+}> {
   try {
-    const { screenshots, stats } = await chrome.storage.local.get(['screenshots', 'stats']);
-    
+    const { screenshots, stats } = await chrome.storage.local.get([
+      'screenshots',
+      'stats',
+    ]);
+
     const totalScreenshots = screenshots ? Object.keys(screenshots).length : 0;
     const lastSaved = stats?.lastSaved || null;
-    
+
     return {
       stats: {
         totalScreenshots,
@@ -231,15 +296,48 @@ export async function updateBadge(mode: ExtensionMode): Promise<void> {
   await chrome.action.setTitle({ title });
 }
 
+// Keep service worker alive
+const PING_INTERVAL = 20000; // 20 seconds
+
+function keepAlive() {
+  // Create an alarm that fires periodically
+  chrome.alarms.create('keepAlive', {
+    periodInMinutes: 0.5, // Every 30 seconds
+  });
+}
+
+// Listen for alarm
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'keepAlive') {
+    // Do something minimal to keep the worker alive
+    console.log('Background service worker ping');
+  }
+});
+
+// Start keepalive
+keepAlive();
+
 // Message handling
 chrome.runtime.onMessage.addListener(
   (message: ExtensionMessage, sender, sendResponse) => {
     // Handle different message types
     switch (message.type) {
       case 'CAPTURE_SCREENSHOT':
-        handleScreenshotCapture((message as any).data, sender.tab?.id)
-          .then(sendResponse)
-          .catch((error) => sendResponse({ success: false, error }));
+        // Wrap in try-catch to handle context invalidation
+        try {
+          handleScreenshotCapture((message as any).data, sender.tab?.id)
+            .then(sendResponse)
+            .catch((error) => {
+              console.error('Screenshot capture error:', error);
+              sendResponse({ success: false, error: error.message });
+            });
+        } catch (error) {
+          console.error('Message handler error:', error);
+          sendResponse({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
         return true; // Keep message channel open for async response
 
       case 'SAVE_SCREENSHOT':

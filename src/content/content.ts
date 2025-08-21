@@ -1,81 +1,77 @@
+import React from 'react';
 import {
   ExtensionSettings,
   ExtensionMessage,
   MarkerColorSettings,
+  AnnotationData,
 } from '@/types';
+import { createRoot } from 'react-dom/client';
+import { AnnotationDialog } from '@/components/AnnotationDialog';
+import { setupTestExports } from './test-helpers';
+import { injectStyles, removeStyles } from './styles';
+import annotationDialogStyles from '@/components/AnnotationDialog.css';
 
 // Content script state
 let isAltPressed = false;
 let currentSettings: ExtensionSettings | null = null;
 let isScreenshotMode = false;
 let originalCursor = '';
+let annotationDialogRoot: HTMLDivElement | null = null;
+let currentAnnotationCoordinates: { x: number; y: number } | null = null;
 
-// Wrap initialization in try-catch to catch any early errors
-try {
-  // Log script initialization attempt
-  console.log('[INSIGHT-CLIP] Content script starting...');
-  console.log('[INSIGHT-CLIP] Current URL:', window.location.href);
-  console.log('[INSIGHT-CLIP] Document readyState:', document.readyState);
-  console.log('[INSIGHT-CLIP] Body exists:', !!document.body);
+// Immediate logging to verify script execution
+console.warn('INSIGHT-CLIP: Script starting');
+console.warn('INSIGHT-CLIP: Document state:', document.readyState);
+console.warn('INSIGHT-CLIP: URL:', window.location.href);
 
-  // Function to initialize UI elements
-  function initializeUI() {
-    try {
-      console.log('[INSIGHT-CLIP] Attempting to create debug element...');
-      const debugElement = document.createElement('div');
-      debugElement.id = 'insight-clip-debug';
-      debugElement.style.cssText = `
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        background: red;
-        color: white;
-        padding: 10px;
-        z-index: 999999;
-        font-family: Arial, sans-serif;
-        border-radius: 5px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      `;
-      debugElement.textContent = 'Insight Clip Active';
+// Function to initialize the debug box
+function createDebugBox() {
+  console.warn('INSIGHT-CLIP: Attempting to create debug box');
+  console.warn('INSIGHT-CLIP: document.body exists?', !!document.body);
+  console.warn('INSIGHT-CLIP: document.readyState:', document.readyState);
 
-      if (document.body) {
-        document.body.appendChild(debugElement);
-        console.log('[INSIGHT-CLIP] Debug element added to page');
-      } else {
-        console.error('[INSIGHT-CLIP] No document.body available');
-      }
-    } catch (uiError) {
-      console.error('[INSIGHT-CLIP] UI initialization error:', uiError);
+  try {
+    const debugBox = document.createElement('div');
+    debugBox.id = 'insight-clip-debug';
+    debugBox.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: red;
+      color: white;
+      padding: 10px;
+      z-index: 999999;
+      font-family: Arial, sans-serif;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    `;
+    debugBox.textContent = 'Insight Clip Active';
+
+    if (document.body) {
+      document.body.appendChild(debugBox);
+      console.warn('INSIGHT-CLIP: Debug box created successfully');
+    } else {
+      console.error('INSIGHT-CLIP: No document.body available');
     }
+  } catch (error) {
+    console.error('INSIGHT-CLIP: Error creating debug box:', error);
   }
+}
 
-  // Try immediate initialization
-  initializeUI();
+// Try to create debug box at different stages
+createDebugBox(); // Immediate attempt
 
-  // Also try on DOMContentLoaded
-  if (document.readyState === 'loading') {
-    console.log(
-      '[INSIGHT-CLIP] Document still loading, adding DOMContentLoaded listener'
-    );
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log('[INSIGHT-CLIP] DOMContentLoaded fired');
-      initializeUI();
-      loadSettings();
-    });
-  }
-
-  // And try on load just to be sure
-  window.addEventListener('load', () => {
-    console.log('[INSIGHT-CLIP] Window load event fired');
-    initializeUI();
+// Try again when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    console.warn('INSIGHT-CLIP: DOMContentLoaded fired');
+    createDebugBox();
     loadSettings();
   });
-
-  // Load settings immediately as well
+} else {
+  console.warn('INSIGHT-CLIP: Document already loaded');
+  createDebugBox();
   loadSettings();
-} catch (error) {
-  // Log any initialization errors
-  console.error('[INSIGHT-CLIP] Content script initialization error:', error);
 }
 
 // Event listeners
@@ -83,6 +79,46 @@ document.addEventListener('keydown', handleKeyDown);
 document.addEventListener('keyup', handleKeyUp);
 document.addEventListener('click', handleClick, true); // Use capture phase
 document.addEventListener('mousemove', handleMouseMove);
+window.addEventListener('beforeunload', function cleanup(): void {
+  document.removeEventListener('keydown', handleKeyDown);
+  document.removeEventListener('keyup', handleKeyUp);
+  document.removeEventListener('click', handleClick, true);
+  document.removeEventListener('mousemove', handleMouseMove);
+});
+
+// Trigger screenshot mode (for keyboard shortcuts)
+function triggerScreenshotMode(): void {
+  if (!currentSettings) return;
+
+  // Temporarily enable screenshot mode
+  const wasAltPressed = isAltPressed;
+  isAltPressed = true;
+  updateCursorState();
+
+  // Show instruction
+  showNotification('Click anywhere to capture screenshot', 'info', 3000);
+
+  // Set up one-time click listener
+  const clickHandler = (event: MouseEvent) => {
+    handleClick(event);
+    document.removeEventListener('click', clickHandler, true);
+
+    // Restore Alt state after a delay
+    setTimeout(() => {
+      isAltPressed = wasAltPressed;
+      updateCursorState();
+    }, 100);
+  };
+
+  document.addEventListener('click', clickHandler, true);
+
+  // Auto-cancel after 10 seconds
+  setTimeout(() => {
+    document.removeEventListener('click', clickHandler, true);
+    isAltPressed = wasAltPressed;
+    updateCursorState();
+  }, 10000);
+}
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener(
@@ -119,60 +155,130 @@ window.addEventListener('message', (event) => {
 // Load settings from background
 async function loadSettings(): Promise<void> {
   try {
-    console.log('Loading settings...');
+    console.warn('INSIGHT-CLIP: Loading settings...');
+    console.warn('INSIGHT-CLIP: Extension ID:', chrome.runtime.id);
+
+    // Check if extension is properly connected
+    if (!chrome.runtime.id) {
+      console.error('INSIGHT-CLIP: Extension context is invalid');
+      return;
+    }
+
     const response = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
-    console.log('Settings response:', response);
-    if (response.settings) {
+    console.warn(
+      'INSIGHT-CLIP: Settings response:',
+      JSON.stringify(response, null, 2)
+    );
+
+    if (response?.settings) {
       currentSettings = response.settings;
-      console.log('Current settings updated:', currentSettings);
+      console.warn(
+        'INSIGHT-CLIP: Current settings updated:',
+        JSON.stringify(currentSettings, null, 2)
+      );
+      console.warn('INSIGHT-CLIP: Mode:', response.settings.mode);
       updateCursorState();
     } else {
-      console.warn('No settings received from background');
+      console.error('INSIGHT-CLIP: No settings received from background');
+      // Try to use default settings
+      currentSettings = {
+        mode: 'screenshot',
+        markerColor: DEFAULT_MARKER_SETTINGS,
+        saveLocation: {
+          path: 'Downloads/Screenshots',
+          createMonthlyFolders: true,
+          organizeByDomain: true,
+        },
+        voice: {
+          enabled: true,
+          autoTranscribe: false,
+          language: 'en-US',
+          maxDuration: 60,
+          quality: 'medium',
+          noiseReduction: true,
+          echoCancellation: true,
+        },
+        text: {
+          defaultFontSize: 16,
+          defaultColor: '#000000',
+          fontFamily: 'Arial, sans-serif',
+          spellCheck: true,
+          autoSave: true,
+          maxLength: 500,
+        },
+      };
+      console.warn('INSIGHT-CLIP: Using default settings:', currentSettings);
     }
   } catch (error) {
-    console.error('Failed to load settings:', error);
+    console.error('INSIGHT-CLIP: Failed to load settings:', error);
+    if (error instanceof Error) {
+      console.error('INSIGHT-CLIP: Error details:', {
+        message: error.message,
+        stack: error.stack,
+      });
+    }
   }
 }
 
 // Handle keydown events
 function handleKeyDown(event: KeyboardEvent): void {
-  console.log('Key down:', event.key, 'Alt pressed:', event.altKey);
-  if (event.key === 'Alt' && !isAltPressed) {
-    console.log('Setting isAltPressed to true');
-    isAltPressed = true;
-    updateCursorState();
+  if (event.key === 'Alt') {
+    const debugBox = document.getElementById('insight-clip-debug');
+    if (debugBox) {
+      debugBox.textContent = 'Alt Key Pressed';
+      debugBox.style.backgroundColor = 'green';
+    }
   }
 }
 
 // Handle keyup events
 function handleKeyUp(event: KeyboardEvent): void {
-  console.log('Key up:', event.key, 'Alt pressed:', event.altKey);
-  if (event.key === 'Alt' && isAltPressed) {
-    console.log('Setting isAltPressed to false');
-    isAltPressed = false;
-    updateCursorState();
+  if (event.key === 'Alt') {
+    const debugBox = document.getElementById('insight-clip-debug');
+    if (debugBox) {
+      debugBox.textContent = 'Insight Clip Active';
+      debugBox.style.backgroundColor = 'red';
+    }
   }
 }
 
 // Handle click events
 function handleClick(event: MouseEvent): void {
-  // Always alert on Alt+Click regardless of mode
-  if (event.altKey) {
-    alert(
-      'Alt + Click detected! ' +
-        'isAltPressed=' +
-        isAltPressed +
-        ', mode=' +
-        currentSettings?.mode
-    );
-  }
+  const debugBox = document.getElementById('insight-clip-debug');
+  if (!debugBox) return;
 
-  // Only handle Alt+Click in screenshot mode
-  if (
-    !isAltPressed ||
-    !currentSettings ||
-    currentSettings.mode !== 'screenshot'
-  ) {
+  // Update debug info
+  debugBox.textContent = `Alt pressed: ${event.altKey}\nMode: ${currentSettings?.mode}`;
+
+  // Log click event
+  console.log('Click event:', {
+    altKey: event.altKey,
+    mode: currentSettings?.mode,
+    settings: currentSettings,
+  });
+
+  // Get coordinates
+  const clickCoordinates = {
+    x: event.clientX,
+    y: event.clientY,
+  };
+
+  // Handle based on mode
+  if (currentSettings?.mode === 'screenshot' && event.altKey) {
+    // Screenshot mode - Alt+Click
+    debugBox.style.backgroundColor = 'green';
+    showClickFeedback(clickCoordinates);
+    captureScreenshot(clickCoordinates);
+  } else if (currentSettings?.mode === 'annotation' && event.altKey) {
+    // Annotation mode - Alt+Click
+    debugBox.style.backgroundColor = 'green';
+    showAnnotationDialog(clickCoordinates);
+  } else {
+    debugBox.style.backgroundColor = 'red';
+    console.warn(
+      'Action not taken: Alt not pressed or invalid mode',
+      currentSettings?.mode
+    );
     return;
   }
 
@@ -180,19 +286,10 @@ function handleClick(event: MouseEvent): void {
   event.preventDefault();
   event.stopPropagation();
 
-  // Get click coordinates
-  const coordinates = {
-    x: event.clientX,
-    y: event.clientY,
-  };
-
-  console.log('Alt+Click detected at:', coordinates);
-
-  // Show visual feedback
-  showClickFeedback(coordinates);
-
-  // Capture screenshot
-  captureScreenshot(coordinates);
+  console.log('Click handled:', {
+    coordinates: clickCoordinates,
+    mode: currentSettings?.mode,
+  });
 }
 
 // Handle mouse move for cursor updates
@@ -232,9 +329,9 @@ function updateCursorState(): void {
 
 // Default marker settings
 const DEFAULT_MARKER_SETTINGS: MarkerColorSettings = {
-  color: '#00ff00',
-  opacity: 1,
-  size: 12,
+  color: '#FF0000',
+  opacity: 0.8,
+  size: 20,
   style: 'solid',
 };
 
@@ -316,66 +413,6 @@ function showScreenFlash(): void {
   }, 200);
 }
 
-// Capture screenshot
-async function captureScreenshot(coordinates: {
-  x: number;
-  y: number;
-}): Promise<void> {
-  try {
-    console.log('Capturing screenshot...');
-
-    const response = await chrome.runtime.sendMessage({
-      type: 'CAPTURE_SCREENSHOT',
-      data: { coordinates },
-    });
-
-    if (response.success) {
-      console.log('Screenshot captured successfully');
-      showNotification('Screenshot captured!', 'success');
-    } else {
-      console.error('Screenshot capture failed:', response.error);
-      showNotification('Screenshot capture failed', 'error');
-    }
-  } catch (error) {
-    console.error('Failed to capture screenshot:', error);
-    showNotification('Screenshot capture failed', 'error');
-  }
-}
-
-// Trigger screenshot mode (for keyboard shortcuts)
-function triggerScreenshotMode(): void {
-  if (!currentSettings) return;
-
-  // Temporarily enable screenshot mode
-  const wasAltPressed = isAltPressed;
-  isAltPressed = true;
-  updateCursorState();
-
-  // Show instruction
-  showNotification('Click anywhere to capture screenshot', 'info', 3000);
-
-  // Set up one-time click listener
-  const clickHandler = (event: MouseEvent) => {
-    handleClick(event);
-    document.removeEventListener('click', clickHandler, true);
-
-    // Restore Alt state after a delay
-    setTimeout(() => {
-      isAltPressed = wasAltPressed;
-      updateCursorState();
-    }, 100);
-  };
-
-  document.addEventListener('click', clickHandler, true);
-
-  // Auto-cancel after 10 seconds
-  setTimeout(() => {
-    document.removeEventListener('click', clickHandler, true);
-    isAltPressed = wasAltPressed;
-    updateCursorState();
-  }, 10000);
-}
-
 // Show notification
 function showNotification(
   message: string,
@@ -418,21 +455,372 @@ function showNotification(
   }, duration);
 }
 
-// Cleanup on page unload
-window.addEventListener('beforeunload', () => {
-  document.removeEventListener('keydown', handleKeyDown);
-  document.removeEventListener('keyup', handleKeyUp);
-  document.removeEventListener('click', handleClick, true);
-  document.removeEventListener('mousemove', handleMouseMove);
-});
+// Capture screenshot with retry
+// Draw marker on screenshot
+async function drawMarkerOnScreenshot(
+  dataUrl: string,
+  coordinates: { x: number; y: number }
+): Promise<string> {
+  console.warn(
+    'INSIGHT-CLIP: Drawing marker...',
+    JSON.stringify(
+      {
+        coordinates,
+        scroll: { x: window.scrollX, y: window.scrollY },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      },
+      null,
+      2
+    )
+  );
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        // Create a canvas to draw on
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d')!;
+
+        console.warn(
+          'INSIGHT-CLIP: Canvas dimensions:',
+          JSON.stringify(
+            {
+              width: canvas.width,
+              height: canvas.height,
+            },
+            null,
+            2
+          )
+        );
+
+        // Draw the screenshot
+        ctx.drawImage(img, 0, 0);
+
+        // Get marker settings
+        const markerSettings =
+          currentSettings?.markerColor || DEFAULT_MARKER_SETTINGS;
+        const size = markerSettings.size;
+
+        console.warn('INSIGHT-CLIP: Marker settings:', markerSettings);
+
+        // Calculate the actual coordinates based on scroll position and image scale
+        const scale = img.width / window.innerWidth;
+        const actualX = coordinates.x * scale;
+        const actualY = coordinates.y * scale;
+
+        console.warn(
+          'INSIGHT-CLIP: Drawing marker at:',
+          JSON.stringify(
+            {
+              original: coordinates,
+              scale,
+              actual: { x: actualX, y: actualY },
+              markerSize: size,
+              markerColor: markerSettings.color,
+              markerOpacity: markerSettings.opacity,
+            },
+            null,
+            2
+          )
+        );
+
+        // Draw the marker
+        ctx.beginPath();
+        ctx.arc(actualX, actualY, size / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = markerSettings.color;
+        ctx.globalAlpha = markerSettings.opacity;
+        ctx.fill();
+
+        // Add white border
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Reset opacity
+        ctx.globalAlpha = 1;
+
+        // Verify marker was drawn
+        const imageData = ctx.getImageData(
+          Math.floor(actualX),
+          Math.floor(actualY),
+          1,
+          1
+        );
+        console.warn(
+          'INSIGHT-CLIP: Pixel color at marker center:',
+          JSON.stringify(
+            {
+              r: imageData.data[0],
+              g: imageData.data[1],
+              b: imageData.data[2],
+              a: imageData.data[3],
+              expectedColor: markerSettings.color,
+            },
+            null,
+            2
+          )
+        );
+
+        // Convert to data URL
+        const finalDataUrl = canvas.toDataURL('image/png');
+        console.warn(
+          'INSIGHT-CLIP: Final data URL length:',
+          finalDataUrl.length
+        );
+        resolve(finalDataUrl);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+// Capture screenshot
+async function captureScreenshot(coordinates: {
+  x: number;
+  y: number;
+}): Promise<void> {
+  try {
+    console.warn('INSIGHT-CLIP: Capturing screenshot...');
+
+    // First get the raw screenshot
+    console.warn(
+      'INSIGHT-CLIP: Requesting screenshot with coordinates:',
+      coordinates
+    );
+
+    const response = await chrome.runtime.sendMessage({
+      type: 'CAPTURE_SCREENSHOT',
+      data: { coordinates },
+    });
+
+    console.warn(
+      'INSIGHT-CLIP: Screenshot response:',
+      JSON.stringify(
+        {
+          success: response.success,
+          hasDataUrl: !!response.dataUrl,
+          dataUrlLength: response.dataUrl?.length || 0,
+          error: response.error,
+        },
+        null,
+        2
+      )
+    );
+
+    if (response.success && response.dataUrl) {
+      // Draw marker on the screenshot
+      console.warn('INSIGHT-CLIP: Drawing marker...');
+      const markedDataUrl = await drawMarkerOnScreenshot(
+        response.dataUrl,
+        coordinates
+      );
+
+      // Save the marked screenshot
+      console.warn('INSIGHT-CLIP: Saving screenshot with marker...');
+
+      const saveData = {
+        dataUrl: markedDataUrl,
+        url: window.location.href,
+        timestamp: Date.now(),
+        coordinates,
+      };
+
+      console.warn(
+        'INSIGHT-CLIP: Save data:',
+        JSON.stringify(
+          {
+            url: saveData.url,
+            timestamp: saveData.timestamp,
+            coordinates: saveData.coordinates,
+            dataUrlLength: saveData.dataUrl.length,
+          },
+          null,
+          2
+        )
+      );
+
+      const saveResponse = await chrome.runtime.sendMessage({
+        type: 'SAVE_SCREENSHOT',
+        data: saveData,
+      });
+
+      console.warn(
+        'INSIGHT-CLIP: Save response:',
+        JSON.stringify(saveResponse, null, 2)
+      );
+
+      if (saveResponse.downloadId) {
+        console.warn(
+          'INSIGHT-CLIP: Screenshot saved successfully with download ID:',
+          saveResponse.downloadId
+        );
+        showNotification('Screenshot captured!', 'success');
+      } else if (saveResponse.error) {
+        console.error(
+          'INSIGHT-CLIP: Failed to save screenshot:',
+          saveResponse.error
+        );
+        showNotification('Failed to save screenshot', 'error');
+      } else {
+        console.error(
+          'INSIGHT-CLIP: Unexpected save response:',
+          JSON.stringify(saveResponse, null, 2)
+        );
+        showNotification('Failed to save screenshot', 'error');
+      }
+    } else {
+      console.error('INSIGHT-CLIP: Screenshot capture failed:', response.error);
+      showNotification('Screenshot capture failed', 'error');
+    }
+  } catch (error) {
+    console.error('INSIGHT-CLIP: Screenshot error:', error);
+
+    // Show error notification
+    showNotification(
+      'Screenshot capture failed - please refresh the page',
+      'error'
+    );
+  }
+}
+
+// Show annotation dialog at click coordinates
+function showAnnotationDialog(coordinates: { x: number; y: number }): void {
+  // Store coordinates for later use
+  currentAnnotationCoordinates = coordinates;
+
+  // Create root element if it doesn't exist
+  if (!annotationDialogRoot) {
+    const container = document.createElement('div');
+    container.id = 'insight-clip-annotation-dialog';
+    document.body.appendChild(container);
+    annotationDialogRoot = container;
+  }
+
+  // Inject styles
+  injectStyles(annotationDialogStyles, 'insight-clip-annotation-styles');
+
+  // Create React root and render dialog
+  const root = createRoot(annotationDialogRoot);
+  root.render(
+    React.createElement(AnnotationDialog, {
+      isOpen: true,
+      position: coordinates,
+      onSave: handleAnnotationSave,
+      onCancel: handleAnnotationCancel,
+      maxLength: currentSettings?.text?.maxLength || 500,
+      placeholder: 'Add your annotation...',
+      autoFocus: true,
+    })
+  );
+}
+
+// Handle annotation save
+async function handleAnnotationSave(annotation: AnnotationData): Promise<void> {
+  try {
+    if (!currentAnnotationCoordinates) {
+      throw new Error('No coordinates available for annotation');
+    }
+
+    // Show visual feedback
+    showClickFeedback(currentAnnotationCoordinates);
+
+    // Take screenshot with annotation
+    if (!annotation.text) {
+      throw new Error('Annotation text is required');
+    }
+    await captureScreenshotWithAnnotation(
+      currentAnnotationCoordinates,
+      annotation.text
+    );
+
+    // Clean up dialog
+    handleAnnotationCancel();
+
+    // Show success notification
+    showNotification('Annotation saved!', 'success');
+  } catch (error) {
+    console.error('INSIGHT-CLIP: Failed to save annotation:', error);
+    showNotification('Failed to save annotation', 'error');
+  }
+}
+
+// Handle annotation cancel
+function handleAnnotationCancel(): void {
+  if (annotationDialogRoot) {
+    // Unmount React component
+    const root = createRoot(annotationDialogRoot);
+    root.unmount();
+
+    // Remove container
+    annotationDialogRoot.remove();
+    annotationDialogRoot = null;
+
+    // Remove injected styles
+    removeStyles('insight-clip-annotation-styles');
+  }
+
+  // Clear stored coordinates
+  currentAnnotationCoordinates = null;
+}
+
+// Capture screenshot with annotation
+async function captureScreenshotWithAnnotation(
+  coordinates: { x: number; y: number },
+  annotationText: string
+): Promise<void> {
+  try {
+    // First capture the screenshot
+    const response = await chrome.runtime.sendMessage({
+      type: 'CAPTURE_SCREENSHOT',
+      data: { coordinates },
+    });
+
+    if (response.success && response.dataUrl) {
+      // Draw marker and annotation on the screenshot
+      const markedDataUrl = await drawMarkerOnScreenshot(
+        response.dataUrl,
+        coordinates
+      );
+
+      // Save the annotated screenshot
+      const saveData = {
+        dataUrl: markedDataUrl,
+        url: window.location.href,
+        timestamp: Date.now(),
+        coordinates,
+        annotation: annotationText,
+      };
+
+      const saveResponse = await chrome.runtime.sendMessage({
+        type: 'SAVE_SCREENSHOT',
+        data: saveData,
+      });
+
+      if (!saveResponse.downloadId) {
+        throw new Error(
+          saveResponse.error || 'Failed to save annotated screenshot'
+        );
+      }
+    } else {
+      throw new Error(response.error || 'Failed to capture screenshot');
+    }
+  } catch (error) {
+    console.error('INSIGHT-CLIP: Screenshot with annotation error:', error);
+    throw error;
+  }
+}
 
 // Export for testing
-if (typeof window !== 'undefined') {
-  (window as any).insightClipContent = {
-    handleClick,
-    showClickFeedback,
-    captureScreenshot,
-    updateCursorState,
-    loadSettings,
-  };
-}
+setupTestExports({
+  handleClick,
+  showClickFeedback,
+  captureScreenshot,
+  updateCursorState,
+  loadSettings,
+});

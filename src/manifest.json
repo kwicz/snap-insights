@@ -5,9 +5,18 @@
   "description": "UX Research Screenshot Extension for capturing screenshots with contextual annotations and voice notes",
   "author": "UX Research Team",
 
-  "permissions": ["activeTab", "storage", "downloads", "scripting", "tabs"],
+  "permissions": [
+    "activeTab",
+    "storage",
+    "downloads",
+    "scripting",
+    "tabs",
+    "desktopCapture",
+    "alarms",
+    "tabCapture"
+  ],
 
-  "host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": ["<all_urls>"],
 
   "background": {
     "service_worker": "background/background.js",
