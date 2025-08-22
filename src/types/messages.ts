@@ -15,6 +15,11 @@ export type MessageType =
   | 'SCREENSHOT_ERROR'
   | 'SAVE_SCREENSHOT'
   | 'SCREENSHOT_SAVED'
+  | 'START_CAPTURE'
+  | 'ACTIVATE_EXTENSION'
+  | 'DEACTIVATE_EXTENSION'
+  | 'ACTIVATE_CAPTURE_MODE'
+  | 'DEACTIVATE_CAPTURE_MODE'
   | 'TRIGGER_SCREENSHOT_MODE'
   | 'TOGGLE_MODE'
   | 'GET_SETTINGS'
@@ -44,6 +49,18 @@ export type MessageType =
 export interface BaseMessage {
   type: MessageType;
   timestamp: number;
+}
+
+export interface StartCaptureMessage extends BaseMessage {
+  type: 'START_CAPTURE';
+  data: {
+    mode: ExtensionMode;
+  };
+}
+
+export interface SettingsUpdatedMessage extends BaseMessage {
+  type: 'SETTINGS_UPDATED';
+  settings: ExtensionSettings;
 }
 
 /**
@@ -191,6 +208,33 @@ export interface GetStorageStatsMessage extends BaseMessage {
 }
 
 /**
+ * Extension state messages
+ */
+export interface ActivateExtensionMessage extends BaseMessage {
+  type: 'ACTIVATE_EXTENSION';
+  data: {
+    mode: ExtensionMode;
+    selectedIcon: 'light' | 'blue' | 'dark';
+  };
+}
+
+export interface DeactivateExtensionMessage extends BaseMessage {
+  type: 'DEACTIVATE_EXTENSION';
+}
+
+export interface ActivateCaptureModeMessage extends BaseMessage {
+  type: 'ACTIVATE_CAPTURE_MODE';
+  data: {
+    mode?: ExtensionMode;
+    selectedIcon?: 'light' | 'blue' | 'dark';
+  };
+}
+
+export interface DeactivateCaptureModeMessage extends BaseMessage {
+  type: 'DEACTIVATE_CAPTURE_MODE';
+}
+
+/**
  * Union type of all possible messages
  */
 export type ExtensionMessage =
@@ -215,7 +259,12 @@ export type ExtensionMessage =
   | SaveScreenshotMessage
   | ToggleModeMessage
   | GetSettingsMessage
-  | GetStorageStatsMessage;
+  | GetStorageStatsMessage
+  | StartCaptureMessage
+  | ActivateExtensionMessage
+  | DeactivateExtensionMessage
+  | ActivateCaptureModeMessage
+  | DeactivateCaptureModeMessage;
 
 /**
  * Message handler type

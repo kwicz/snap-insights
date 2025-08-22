@@ -4,6 +4,9 @@ import {
   ExtensionMessage,
   MarkerColorSettings,
   AnnotationData,
+  SettingsUpdatedMessage,
+  ActivateCaptureModeMessage,
+  DeactivateCaptureModeMessage,
 } from '@/types';
 import { createRoot } from 'react-dom/client';
 import { AnnotationDialog } from '@/components/AnnotationDialog';
@@ -20,6 +23,8 @@ let isScreenshotMode = false;
 let originalCursor = '';
 let annotationDialogRoot: HTMLDivElement | null = null;
 let currentAnnotationCoordinates: { x: number; y: number } | null = null;
+let selectedIcon: 'light' | 'blue' | 'dark' = 'blue';
+let extensionActive = false;
 
 // Immediate logging to verify script execution
 console.warn('INSIGHT-CLIP: Script starting');
@@ -97,8 +102,7 @@ function triggerScreenshotMode(): void {
   isAltPressed = true;
   updateCursorState();
 
-  // Show instruction
-  showNotification('Click anywhere to capture screenshot', 'info', 3000);
+  // Show instruction (removed notification)
 
   // Set up one-time click listener
   const clickHandler = (event: MouseEvent) => {
@@ -129,13 +133,53 @@ chrome.runtime.onMessage.addListener(
 
     switch (message.type) {
       case 'SETTINGS_UPDATED':
-        currentSettings = message.settings;
+        currentSettings = (message as SettingsUpdatedMessage).settings;
         updateCursorState();
+        sendResponse({ success: true });
+        break;
+
+      case 'START_CAPTURE':
+        // Update settings with the mode from the message
+        const captureData = (message as any).data;
+        if (captureData?.mode && currentSettings) {
+          currentSettings = {
+            ...currentSettings,
+            mode: captureData.mode,
+          };
+          updateCursorState();
+        }
+
+        // If in screenshot mode, trigger screenshot mode
+        if (currentSettings?.mode === 'screenshot') {
+          triggerScreenshotMode();
+        }
+
         sendResponse({ success: true });
         break;
 
       case 'TRIGGER_SCREENSHOT_MODE':
         triggerScreenshotMode();
+        sendResponse({ success: true });
+        break;
+
+      case 'ACTIVATE_CAPTURE_MODE':
+        const activateMsg = message as ActivateCaptureModeMessage;
+        extensionActive = true;
+        selectedIcon = activateMsg.data.selectedIcon || 'blue';
+        if (activateMsg.data.mode && currentSettings) {
+          currentSettings = {
+            ...currentSettings,
+            mode: activateMsg.data.mode,
+          };
+        }
+        updateCursorState();
+        sendResponse({ success: true });
+        break;
+
+      case 'DEACTIVATE_CAPTURE_MODE':
+        extensionActive = false;
+        selectedIcon = 'blue';
+        updateCursorState();
         sendResponse({ success: true });
         break;
 
@@ -273,27 +317,47 @@ function handleClick(event: MouseEvent): void {
     y: event.clientY,
   };
 
-  // Handle based on mode
-  if (currentSettings?.mode === 'screenshot' && event.altKey) {
-    // Screenshot mode - Alt+Click
-    debugBox.style.backgroundColor = 'green';
-    showClickFeedback(clickCoordinates);
-    captureScreenshot(clickCoordinates);
-  } else if (currentSettings?.mode === 'annotation') {
-    // Annotation mode - Click
-    debugBox.style.backgroundColor = 'green';
-    showAnnotationDialog(clickCoordinates);
-  } else if (currentSettings?.mode === 'transcribe') {
-    // Transcribe mode - Click
-    debugBox.style.backgroundColor = 'green';
-    showTranscriptionDialog(clickCoordinates);
-  } else {
+  // Handle based on mode, extension active state, and Alt key
+  if (!extensionActive) {
     debugBox.style.backgroundColor = 'red';
-    console.warn(
-      'Action not taken: Alt not pressed or invalid mode',
-      currentSettings?.mode
-    );
+    console.warn('Action not taken: Extension not active');
     return;
+  }
+
+  // Require Alt+Click for all actions
+  if (!event.altKey) {
+    debugBox.style.backgroundColor = 'red';
+    console.warn('Action not taken: Alt key not pressed');
+    return;
+  }
+
+  // Handle different modes
+  switch (currentSettings?.mode) {
+    case 'snap':
+    case 'screenshot':
+      // SNAP MODE: Direct screenshot with touchpoint icon at click location (Alt+Click)
+      debugBox.style.backgroundColor = 'green';
+      showClickFeedback(clickCoordinates);
+      captureScreenshotWithTouchpoint(clickCoordinates);
+      break;
+      
+    case 'annotate':
+    case 'annotation':
+      // ANNOTATION MODE: Show dialog for text input, then screenshot with touchpoint + text (Alt+Click)
+      debugBox.style.backgroundColor = 'blue';
+      showAnnotationDialog(clickCoordinates);
+      break;
+      
+    case 'transcribe':
+      // TRANSCRIBE MODE: Voice recording and transcription (Alt+Click)
+      debugBox.style.backgroundColor = 'purple';
+      showTranscriptionDialog(clickCoordinates);
+      break;
+      
+    default:
+      debugBox.style.backgroundColor = 'red';
+      console.warn('Action not taken: Invalid mode', currentSettings?.mode);
+      return;
   }
 
   // Prevent default click behavior
@@ -351,38 +415,36 @@ const DEFAULT_MARKER_SETTINGS: MarkerColorSettings = {
 
 // Update showClickFeedback function
 function showClickFeedback(coordinates: { x: number; y: number }): void {
-  const markerSettings =
-    currentSettings?.markerColor || DEFAULT_MARKER_SETTINGS;
-
-  // Create marker element
+  // Create marker element using selected touchpoint icon
   const marker = document.createElement('div');
   marker.className = 'insight-clip-marker';
 
-  // Calculate size based on settings
-  const size = markerSettings.size;
-  const offset = size / 2;
+  // Create image element for the touchpoint
+  const iconImg = document.createElement('img');
+  const iconPath = chrome.runtime.getURL(
+    `assets/icons/touchpoint-${selectedIcon}.png`
+  );
+  iconImg.src = iconPath;
+  iconImg.style.cssText = `
+    width: 32px;
+    height: 32px;
+    display: block;
+  `;
 
+  // Position the marker
   marker.style.cssText = `
     position: fixed;
-    left: ${coordinates.x - offset}px;
-    top: ${coordinates.y - offset}px;
-    width: ${size}px;
-    height: ${size}px;
-    background-color: ${markerSettings.color};
-    opacity: ${markerSettings.opacity};
-    border: 2px solid white;
-    border-radius: 50%;
+    left: ${coordinates.x - 16}px;
+    top: ${coordinates.y - 16}px;
+    width: 32px;
+    height: 32px;
     z-index: 999999;
     pointer-events: none;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
     animation: insight-clip-pulse 0.6s ease-out;
   `;
 
-  // Add style-specific CSS
-  if (markerSettings.style !== 'solid') {
-    marker.style.border = `2px ${markerSettings.style} ${markerSettings.color}`;
-    marker.style.backgroundColor = 'transparent';
-  }
+  // Add the icon to the marker
+  marker.appendChild(iconImg);
 
   // Add to document
   document.body.appendChild(marker);
@@ -470,8 +532,8 @@ function showNotification(
 }
 
 // Capture screenshot with retry
-// Draw marker on screenshot
-async function drawMarkerOnScreenshot(
+// Draw touchpoint icon on screenshot
+async function drawTouchpointOnScreenshot(
   dataUrl: string,
   coordinates: { x: number; y: number }
 ): Promise<string> {
@@ -541,47 +603,214 @@ async function drawMarkerOnScreenshot(
           )
         );
 
-        // Draw the marker
-        ctx.beginPath();
-        ctx.arc(actualX, actualY, size / 2, 0, 2 * Math.PI);
-        ctx.fillStyle = markerSettings.color;
-        ctx.globalAlpha = markerSettings.opacity;
-        ctx.fill();
+        // Load and draw the selected touchpoint icon
+        const iconImg = new Image();
+        iconImg.crossOrigin = 'anonymous';
 
-        // Add white border
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        iconImg.onload = () => {
+          try {
+            // Draw the touchpoint icon at the click coordinates
+            const iconSize = 32; // Fixed size for touchpoint icons
+            ctx.drawImage(
+              iconImg,
+              actualX - iconSize / 2,
+              actualY - iconSize / 2,
+              iconSize,
+              iconSize
+            );
 
-        // Reset opacity
-        ctx.globalAlpha = 1;
+            // Convert to data URL and resolve
+            const finalDataUrl = canvas.toDataURL('image/png');
+            console.warn(
+              'INSIGHT-CLIP: Final data URL with touchpoint icon length:',
+              finalDataUrl.length
+            );
+            resolve(finalDataUrl);
+          } catch (error) {
+            console.error(
+              'INSIGHT-CLIP: Error drawing touchpoint icon:',
+              error
+            );
+            reject(error);
+          }
+        };
 
-        // Verify marker was drawn
-        const imageData = ctx.getImageData(
-          Math.floor(actualX),
-          Math.floor(actualY),
-          1,
-          1
+        iconImg.onerror = () => {
+          console.error(
+            'INSIGHT-CLIP: Failed to load touchpoint icon, using fallback'
+          );
+          // Fallback to circle marker
+          ctx.beginPath();
+          ctx.arc(actualX, actualY, size / 2, 0, 2 * Math.PI);
+          ctx.fillStyle = markerSettings.color;
+          ctx.globalAlpha = markerSettings.opacity;
+          ctx.fill();
+
+          // Add white border
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Reset opacity
+          ctx.globalAlpha = 1;
+
+          const finalDataUrl = canvas.toDataURL('image/png');
+          resolve(finalDataUrl);
+        };
+
+        // Load the selected touchpoint icon
+        const iconPath = chrome.runtime.getURL(
+          `assets/icons/touchpoint-${selectedIcon}.png`
         );
-        console.warn(
-          'INSIGHT-CLIP: Pixel color at marker center:',
-          JSON.stringify(
-            {
-              r: imageData.data[0],
-              g: imageData.data[1],
-              b: imageData.data[2],
-              a: imageData.data[3],
-              expectedColor: markerSettings.color,
-            },
-            null,
-            2
-          )
-        );
+        iconImg.src = iconPath;
+      } catch (error) {
+        reject(error);
+      }
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
 
-        // Convert to data URL
+// Draw touchpoint icon and annotation text on screenshot (ANNOTATION MODE)
+async function drawTouchpointAndAnnotationOnScreenshot(
+  dataUrl: string,
+  coordinates: { x: number; y: number },
+  annotationText: string
+): Promise<string> {
+  console.warn(
+    'INSIGHT-CLIP: Drawing touchpoint and annotation...',
+    JSON.stringify({ coordinates, annotationText }, null, 2)
+  );
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        // Create a canvas to draw on
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d')!;
+
+        // Draw the screenshot
+        ctx.drawImage(img, 0, 0);
+
+        // Calculate the actual coordinates based on scroll position and image scale
+        const scale = img.width / window.innerWidth;
+        const actualX = coordinates.x * scale;
+        const actualY = coordinates.y * scale;
+
+        // Load and draw the selected touchpoint icon
+        const iconImg = new Image();
+        iconImg.crossOrigin = 'anonymous';
+        
+        iconImg.onload = () => {
+          try {
+            // Draw the touchpoint icon at the click coordinates
+            const iconSize = 32; // Fixed size for touchpoint icons
+            ctx.drawImage(
+              iconImg, 
+              actualX - iconSize / 2, 
+              actualY - iconSize / 2, 
+              iconSize, 
+              iconSize
+            );
+
+            // Draw annotation text near the touchpoint
+            const textPadding = 10;
+            const textX = actualX + iconSize / 2 + textPadding;
+            const textY = actualY - iconSize / 2;
+
+            // Style the text
+            ctx.font = '16px Arial, sans-serif';
+            ctx.fillStyle = '#000000';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+
+            // Draw text background for better readability
+            const textMetrics = ctx.measureText(annotationText);
+            const textWidth = textMetrics.width;
+            const textHeight = 20;
+            
+            // Background rectangle
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(
+              textX - 5, 
+              textY - textHeight, 
+              textWidth + 10, 
+              textHeight + 5
+            );
+
+            // Draw text outline (for better visibility)
+            ctx.strokeText(annotationText, textX, textY);
+            
+            // Draw text
+            ctx.fillStyle = '#000000';
+            ctx.fillText(annotationText, textX, textY);
+
+            // Convert to data URL and resolve
+            const finalDataUrl = canvas.toDataURL('image/png');
+            console.warn(
+              'INSIGHT-CLIP: Final data URL with touchpoint and annotation length:',
+              finalDataUrl.length
+            );
+            resolve(finalDataUrl);
+          } catch (error) {
+            console.error('INSIGHT-CLIP: Error drawing touchpoint and annotation:', error);
+            reject(error);
+          }
+        };
+
+        iconImg.onerror = () => {
+          console.error('INSIGHT-CLIP: Failed to load touchpoint icon for annotation, using fallback');
+          // Fallback: just draw text with a simple circle marker
+          const markerSettings = currentSettings?.markerColor || DEFAULT_MARKER_SETTINGS;
+          
+          // Draw circle marker
+          ctx.beginPath();
+          ctx.arc(actualX, actualY, 10, 0, 2 * Math.PI);
+          ctx.fillStyle = markerSettings.color;
+          ctx.fill();
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Draw annotation text
+          const textPadding = 15;
+          const textX = actualX + textPadding;
+          const textY = actualY - 10;
+
+          ctx.font = '16px Arial, sans-serif';
+          ctx.fillStyle = '#000000';
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 3;
+
+          // Text background
+          const textMetrics = ctx.measureText(annotationText);
+          const textWidth = textMetrics.width;
+          const textHeight = 20;
+          
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.fillRect(textX - 5, textY - textHeight, textWidth + 10, textHeight + 5);
+
+          // Draw text
+          ctx.strokeText(annotationText, textX, textY);
+          ctx.fillStyle = '#000000';
+          ctx.fillText(annotationText, textX, textY);
+
+          const finalDataUrl = canvas.toDataURL('image/png');
+          resolve(finalDataUrl);
+        };
+
+        // Load the selected touchpoint icon
+        const iconPath = chrome.runtime.getURL(`assets/icons/touchpoint-${selectedIcon}.png`);
+        iconImg.src = iconPath;
+
+        // Convert to data URL and resolve
         const finalDataUrl = canvas.toDataURL('image/png');
         console.warn(
-          'INSIGHT-CLIP: Final data URL length:',
+          'INSIGHT-CLIP: Final data URL with touchpoint icon length:',
           finalDataUrl.length
         );
         resolve(finalDataUrl);
@@ -594,8 +823,8 @@ async function drawMarkerOnScreenshot(
   });
 }
 
-// Capture screenshot
-async function captureScreenshot(coordinates: {
+// Capture screenshot with touchpoint icon (SNAP MODE)
+async function captureScreenshotWithTouchpoint(coordinates: {
   x: number;
   y: number;
 }): Promise<void> {
@@ -628,21 +857,22 @@ async function captureScreenshot(coordinates: {
     );
 
     if (response.success && response.dataUrl) {
-      // Draw marker on the screenshot
-      console.warn('INSIGHT-CLIP: Drawing marker...');
-      const markedDataUrl = await drawMarkerOnScreenshot(
+      // Draw touchpoint icon on the screenshot
+      console.warn('INSIGHT-CLIP: Drawing touchpoint icon...');
+      const markedDataUrl = await drawTouchpointOnScreenshot(
         response.dataUrl,
         coordinates
       );
 
-      // Save the marked screenshot
-      console.warn('INSIGHT-CLIP: Saving screenshot with marker...');
+      // Save the screenshot with touchpoint
+      console.warn('INSIGHT-CLIP: Saving screenshot with touchpoint...');
 
       const saveData = {
         dataUrl: markedDataUrl,
         url: window.location.href,
         timestamp: Date.now(),
         coordinates,
+        mode: 'snap',
       };
 
       console.warn(
@@ -674,32 +904,22 @@ async function captureScreenshot(coordinates: {
           'INSIGHT-CLIP: Screenshot saved successfully with download ID:',
           saveResponse.downloadId
         );
-        showNotification('Screenshot captured!', 'success');
       } else if (saveResponse.error) {
         console.error(
           'INSIGHT-CLIP: Failed to save screenshot:',
           saveResponse.error
         );
-        showNotification('Failed to save screenshot', 'error');
       } else {
         console.error(
           'INSIGHT-CLIP: Unexpected save response:',
           JSON.stringify(saveResponse, null, 2)
         );
-        showNotification('Failed to save screenshot', 'error');
       }
     } else {
       console.error('INSIGHT-CLIP: Screenshot capture failed:', response.error);
-      showNotification('Screenshot capture failed', 'error');
     }
   } catch (error) {
     console.error('INSIGHT-CLIP: Screenshot error:', error);
-
-    // Show error notification
-    showNotification(
-      'Screenshot capture failed - please refresh the page',
-      'error'
-    );
   }
 }
 
@@ -734,7 +954,7 @@ function showAnnotationDialog(coordinates: { x: number; y: number }): void {
   );
 }
 
-// Handle annotation save
+// Handle annotation save (ANNOTATION MODE)
 async function handleAnnotationSave(annotation: AnnotationData): Promise<void> {
   try {
     if (!currentAnnotationCoordinates) {
@@ -744,7 +964,7 @@ async function handleAnnotationSave(annotation: AnnotationData): Promise<void> {
     // Show visual feedback
     showClickFeedback(currentAnnotationCoordinates);
 
-    // Take screenshot with annotation
+    // Take screenshot with annotation text and touchpoint
     if (!annotation.text) {
       throw new Error('Annotation text is required');
     }
@@ -756,11 +976,10 @@ async function handleAnnotationSave(annotation: AnnotationData): Promise<void> {
     // Clean up dialog
     handleAnnotationCancel();
 
-    // Show success notification
-    showNotification('Annotation saved!', 'success');
+    // Success - annotation saved
+    console.log('INSIGHT-CLIP: Annotation saved successfully');
   } catch (error) {
     console.error('INSIGHT-CLIP: Failed to save annotation:', error);
-    showNotification('Failed to save annotation', 'error');
   }
 }
 
@@ -813,7 +1032,7 @@ function showTranscriptionDialog(coordinates: { x: number; y: number }): void {
   );
 }
 
-// Capture screenshot with annotation
+// Capture screenshot with annotation (ANNOTATION MODE)
 async function captureScreenshotWithAnnotation(
   coordinates: { x: number; y: number },
   annotationText: string
@@ -826,19 +1045,21 @@ async function captureScreenshotWithAnnotation(
     });
 
     if (response.success && response.dataUrl) {
-      // Draw marker and annotation on the screenshot
-      const markedDataUrl = await drawMarkerOnScreenshot(
+      // Draw touchpoint icon and annotation text on the screenshot
+      const annotatedDataUrl = await drawTouchpointAndAnnotationOnScreenshot(
         response.dataUrl,
-        coordinates
+        coordinates,
+        annotationText
       );
 
       // Save the annotated screenshot
       const saveData = {
-        dataUrl: markedDataUrl,
+        dataUrl: annotatedDataUrl,
         url: window.location.href,
         timestamp: Date.now(),
         coordinates,
         annotation: annotationText,
+        mode: 'annotation',
       };
 
       const saveResponse = await chrome.runtime.sendMessage({
@@ -864,7 +1085,7 @@ async function captureScreenshotWithAnnotation(
 setupTestExports({
   handleClick,
   showClickFeedback,
-  captureScreenshot,
+  captureScreenshotWithTouchpoint,
   updateCursorState,
   loadSettings,
 });

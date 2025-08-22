@@ -1,11 +1,11 @@
 :root {
   /* Color Palette */
-  --primary-50: #eff6ff;
-  --primary-100: #dbeafe;
-  --primary-200: #bfdbfe;
-  --primary-300: #93c5fd;
-  --primary-400: #60a5fa;
-  --primary-500: #3b82f6;
+  --primary-50: #f0f9ff;
+  --primary-100: #dfedff;
+  --primary-200: #dfedff;
+  --primary-300: #dfedff;
+  --primary-400: #dfedff;
+  --primary-500: #dfedff;
   --primary-600: #2563eb;
   --primary-700: #1d4ed8;
   --primary-800: #1e40af;
@@ -15,8 +15,8 @@
   --neutral-100: #f1f3f5;
   --neutral-200: #e9ecef;
   --neutral-300: #dee2e6;
-  --neutral-400: #ced4da;
-  --neutral-500: #adb5bd;
+  --neutral-400: #d9d9d9;
+  --neutral-500: #d9d9d9;
   --neutral-600: #6b7280;
   --neutral-700: #495057;
   --neutral-800: #343a40;
@@ -35,7 +35,7 @@
   --warning-700: #b45309;
 
   /* Typography */
-  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+  --font-family-base: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
   --font-family-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     monospace;

@@ -4,6 +4,8 @@ import {
   ScreenshotData,
   ExtensionMessage,
   MarkerColorSettings,
+  ActivateExtensionMessage,
+  DeactivateExtensionMessage,
 } from '../types';
 import { ExtensionError } from '../types';
 
@@ -181,7 +183,7 @@ export async function handleGetSettings(): Promise<{
     // Return default settings if none exist
     if (!settings) {
       const defaultSettings: ExtensionSettings = {
-        mode: 'screenshot',
+        mode: 'snap',
         markerColor: {
           color: '#FF0000',
           opacity: 0.8,
@@ -294,6 +296,123 @@ export async function handleModeToggle(): Promise<{ mode: ExtensionMode }> {
 }
 
 /**
+ * Handle extension activation
+ */
+export async function handleActivateExtension(data: {
+  mode: ExtensionMode;
+  selectedIcon: 'light' | 'blue' | 'dark';
+}): Promise<{ success: boolean }> {
+  try {
+    // Store the current mode and selected icon
+    await chrome.storage.local.set({
+      extensionActive: true,
+      currentMode: data.mode,
+      selectedIcon: data.selectedIcon,
+    });
+
+    // Update badge
+    await updateBadge(data.mode);
+
+    // Inject content script into active tab
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    if (tab?.id) {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content/content.js'],
+      });
+
+      // Send activation message to content script
+      await chrome.tabs.sendMessage(tab.id, {
+        type: 'ACTIVATE_CAPTURE_MODE',
+        data: { mode: data.mode, selectedIcon: data.selectedIcon },
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    throw new ExtensionError(
+      'Failed to activate extension',
+      'operation',
+      'activation_error',
+      { originalError: error }
+    );
+  }
+}
+
+/**
+ * Handle extension deactivation
+ */
+export async function handleDeactivateExtension(): Promise<{
+  success: boolean;
+}> {
+  try {
+    // Store the inactive state
+    await chrome.storage.local.set({
+      extensionActive: false,
+      currentMode: null,
+      selectedIcon: null,
+    });
+
+    // Clear badge
+    await chrome.action.setBadgeText({ text: '' });
+    await chrome.action.setTitle({ title: 'Insight Clip' });
+
+    // Send deactivation message to content script
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    if (tab?.id) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          type: 'DEACTIVATE_CAPTURE_MODE',
+        });
+      } catch (error) {
+        // Content script might not be injected, ignore error
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    throw new ExtensionError(
+      'Failed to deactivate extension',
+      'operation',
+      'deactivation_error',
+      { originalError: error }
+    );
+  }
+}
+
+/**
+ * Handle start capture (legacy support)
+ */
+export async function handleStartCapture(
+  data: { mode: ExtensionMode },
+  tabId?: number
+): Promise<{ success: boolean }> {
+  try {
+    // Get the selected icon from storage
+    const { selectedIcon } = await chrome.storage.local.get('selectedIcon');
+
+    // Activate extension with the mode and icon
+    return await handleActivateExtension({
+      mode: data.mode,
+      selectedIcon: selectedIcon || 'blue',
+    });
+  } catch (error) {
+    throw new ExtensionError(
+      'Failed to start capture',
+      'operation',
+      'start_capture_error',
+      { originalError: error }
+    );
+  }
+}
+
+/**
  * Update extension badge based on mode
  */
 export async function updateBadge(mode: ExtensionMode): Promise<void> {
@@ -391,6 +510,29 @@ chrome.runtime.onMessage.addListener(
           .then(sendResponse)
           .catch((error) => sendResponse({ success: false, error }));
         return true;
+
+      case 'ACTIVATE_EXTENSION':
+        const activateMsg = message as ActivateExtensionMessage;
+        handleActivateExtension({
+          mode: activateMsg.data.mode,
+          selectedIcon: activateMsg.data.selectedIcon,
+        })
+          .then(sendResponse)
+          .catch((error) => sendResponse({ success: false, error }));
+        return true;
+
+      case 'DEACTIVATE_EXTENSION':
+        const deactivateMsg = message as DeactivateExtensionMessage;
+        handleDeactivateExtension()
+          .then(sendResponse)
+          .catch((error) => sendResponse({ success: false, error }));
+        return true;
+
+      case 'START_CAPTURE':
+        handleStartCapture((message as any).data, sender.tab?.id)
+          .then(sendResponse)
+          .catch((error) => sendResponse({ success: false, error }));
+        return true;
     }
   }
 );
@@ -418,7 +560,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
     // Set default settings
     const defaultSettings: ExtensionSettings = {
-      mode: 'screenshot',
+      mode: 'snap',
       markerColor: {
         color: '#FF0000',
         opacity: 0.8,
