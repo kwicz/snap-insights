@@ -1,0 +1,48 @@
+.setting-group {
+  margin-bottom: var(--section-spacing);
+}
+
+.setting-group:last-child {
+  margin-bottom: 0;
+}
+
+.setting-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--item-spacing);
+}
+
+.setting-description {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--group-spacing);
+  line-height: var(--line-height-base);
+}
+
+.setting-content {
+  margin-top: var(--item-spacing);
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--item-spacing) 0;
+}
+
+.setting-row-text {
+  flex: 1;
+}
+
+.setting-row-title {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.setting-row-description {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}

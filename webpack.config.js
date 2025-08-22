@@ -17,10 +17,6 @@ module.exports = (env, argv) => {
       path: path.resolve(__dirname, 'dist'),
       filename: '[name]/[name].js',
       clean: true,
-      // Chrome extensions don't support eval-based source maps
-      devtoolModuleFilenameTemplate: isDevelopment
-        ? 'webpack://[namespace]/[resource-path]?[loaders]'
-        : undefined,
     },
     module: {
       rules: [
@@ -29,7 +25,7 @@ module.exports = (env, argv) => {
           use: {
             loader: 'ts-loader',
             options: {
-              transpileOnly: isDevelopment, // Faster builds in dev
+              transpileOnly: isDevelopment,
               compilerOptions: {
                 sourceMap: isDevelopment,
               },
@@ -41,7 +37,6 @@ module.exports = (env, argv) => {
           test: /\.css$/,
           oneOf: [
             {
-              // CSS files imported in content scripts
               include: [
                 path.resolve(__dirname, 'src/content'),
                 path.resolve(__dirname, 'src/components'),
@@ -58,7 +53,6 @@ module.exports = (env, argv) => {
               ],
             },
             {
-              // Regular CSS files for popup and other components
               use: [
                 isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
                 {
@@ -100,7 +94,6 @@ module.exports = (env, argv) => {
             from: 'src/manifest.json',
             to: 'manifest.json',
             transform(content) {
-              // Allow manifest transformation for different environments
               const manifest = JSON.parse(content.toString());
               if (isDevelopment) {
                 manifest.name += ' (Dev)';
@@ -124,46 +117,27 @@ module.exports = (env, argv) => {
         template: 'src/popup/popup.html',
         filename: 'popup/popup.html',
         chunks: ['popup'],
-        inject: 'body',
-        minify: isProduction
-          ? {
-              removeComments: true,
-              collapseWhitespace: true,
-              removeRedundantAttributes: true,
-              useShortDoctype: true,
-              removeEmptyAttributes: true,
-              removeStyleLinkTypeAttributes: true,
-              keepClosingSlash: true,
-              minifyJS: true,
-              minifyCSS: true,
-              minifyURLs: true,
-            }
-          : false,
+        inject: true,
+        publicPath: '..',
       }),
-      ...(isProduction
-        ? [
-            new MiniCssExtractPlugin({
-              filename: '[name]/[name].css',
-            }),
-          ]
-        : []),
+      new MiniCssExtractPlugin({
+        filename: '[name]/[name].css',
+      }),
     ],
-    // Chrome extensions require inline source maps for development
     devtool: isDevelopment ? 'inline-cheap-module-source-map' : false,
     optimization: {
-      splitChunks: false, // Chrome extensions don't support code splitting
+      splitChunks: false,
       minimize: isProduction,
       sideEffects: false,
     },
-    // Chrome extension specific settings
     target: ['web', 'es2020'],
     experiments: {
-      topLevelAwait: true, // Enable top-level await for modern Chrome extensions
+      topLevelAwait: true,
     },
     performance: {
       hints: isProduction ? 'warning' : false,
-      maxAssetSize: 1024 * 1024, // 1MB
-      maxEntrypointSize: 1024 * 1024, // 1MB
+      maxAssetSize: 1024 * 1024,
+      maxEntrypointSize: 1024 * 1024,
     },
     stats: {
       errorDetails: true,

@@ -210,6 +210,14 @@ export async function handleGetSettings(): Promise<{
           autoSave: true,
           maxLength: 500,
         },
+        transcription: {
+          enabled: true,
+          language: 'en-US',
+          maxDuration: 300,
+          confidenceThreshold: 0.8,
+          interimResults: true,
+          silenceTimeout: 2,
+        },
       };
 
       await chrome.storage.sync.set({ settings: defaultSettings });
@@ -289,8 +297,22 @@ export async function handleModeToggle(): Promise<{ mode: ExtensionMode }> {
  * Update extension badge based on mode
  */
 export async function updateBadge(mode: ExtensionMode): Promise<void> {
-  const text = mode === 'screenshot' ? 'S' : 'A';
-  const title = mode === 'screenshot' ? 'Screenshot Mode' : 'Annotation Mode';
+  let text = 'S';
+  let title = 'Screenshot Mode';
+
+  switch (mode) {
+    case 'annotation':
+      text = 'A';
+      title = 'Annotation Mode';
+      break;
+    case 'transcribe':
+      text = 'T';
+      title = 'Transcribe Mode';
+      break;
+    default:
+      text = 'S';
+      title = 'Screenshot Mode';
+  }
 
   await chrome.action.setBadgeText({ text });
   await chrome.action.setTitle({ title });
@@ -424,6 +446,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         spellCheck: true,
         autoSave: true,
         maxLength: 500,
+      },
+      transcription: {
+        enabled: true,
+        language: 'en-US',
+        maxDuration: 300,
+        confidenceThreshold: 0.8,
+        interimResults: true,
+        silenceTimeout: 2,
       },
     };
 

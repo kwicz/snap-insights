@@ -7,9 +7,11 @@ import {
 } from '@/types';
 import { createRoot } from 'react-dom/client';
 import { AnnotationDialog } from '@/components/AnnotationDialog';
+import { TranscriptionDialog } from '@/components/TranscriptionDialog';
 import { setupTestExports } from './test-helpers';
 import { injectStyles, removeStyles } from './styles';
 import annotationDialogStyles from '@/components/AnnotationDialog.css';
+import transcriptionDialogStyles from '@/components/TranscriptionDialog/TranscriptionDialog.css';
 
 // Content script state
 let isAltPressed = false;
@@ -206,6 +208,14 @@ async function loadSettings(): Promise<void> {
           autoSave: true,
           maxLength: 500,
         },
+        transcription: {
+          enabled: true,
+          language: 'en-US',
+          maxDuration: 300,
+          confidenceThreshold: 0.8,
+          interimResults: true,
+          silenceTimeout: 2,
+        },
       };
       console.warn('INSIGHT-CLIP: Using default settings:', currentSettings);
     }
@@ -269,10 +279,14 @@ function handleClick(event: MouseEvent): void {
     debugBox.style.backgroundColor = 'green';
     showClickFeedback(clickCoordinates);
     captureScreenshot(clickCoordinates);
-  } else if (currentSettings?.mode === 'annotation' && event.altKey) {
-    // Annotation mode - Alt+Click
+  } else if (currentSettings?.mode === 'annotation') {
+    // Annotation mode - Click
     debugBox.style.backgroundColor = 'green';
     showAnnotationDialog(clickCoordinates);
+  } else if (currentSettings?.mode === 'transcribe') {
+    // Transcribe mode - Click
+    debugBox.style.backgroundColor = 'green';
+    showTranscriptionDialog(clickCoordinates);
   } else {
     debugBox.style.backgroundColor = 'red';
     console.warn(
@@ -763,10 +777,40 @@ function handleAnnotationCancel(): void {
 
     // Remove injected styles
     removeStyles('insight-clip-annotation-styles');
+    removeStyles('insight-clip-transcription-styles');
   }
 
   // Clear stored coordinates
   currentAnnotationCoordinates = null;
+}
+
+// Show transcription dialog at click coordinates
+function showTranscriptionDialog(coordinates: { x: number; y: number }): void {
+  // Store coordinates for later use
+  currentAnnotationCoordinates = coordinates;
+
+  // Create root element if it doesn't exist
+  if (!annotationDialogRoot) {
+    const container = document.createElement('div');
+    container.id = 'insight-clip-transcription-dialog';
+    document.body.appendChild(container);
+    annotationDialogRoot = container;
+  }
+
+  // Inject styles
+  injectStyles(transcriptionDialogStyles, 'insight-clip-transcription-styles');
+
+  // Create React root and render dialog
+  const root = createRoot(annotationDialogRoot);
+  root.render(
+    React.createElement(TranscriptionDialog, {
+      isOpen: true,
+      position: coordinates,
+      onSave: handleAnnotationSave,
+      onCancel: handleAnnotationCancel,
+      maxLength: currentSettings?.text?.maxLength || 500,
+    })
+  );
 }
 
 // Capture screenshot with annotation

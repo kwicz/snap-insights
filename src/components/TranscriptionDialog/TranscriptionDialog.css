@@ -1,0 +1,22 @@
+.transcription-dialog {
+  position: relative;
+}
+
+.transcription-dialog__indicator {
+  position: absolute;
+  top: -60px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: fit-content;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .transcription-dialog__indicator {
+    position: relative;
+    top: 0;
+    margin-bottom: 12px;
+  }
+}

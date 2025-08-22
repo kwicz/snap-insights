@@ -1,5 +1,9 @@
 import React from 'react';
-import { VoicePreferences, TextPreferences } from '@/types';
+import {
+  VoicePreferences,
+  TextPreferences,
+  TranscriptionPreferences,
+} from '@/types';
 import './PreferencesPanel.css';
 
 const FONT_FAMILIES = [
@@ -29,16 +33,22 @@ const QUALITY_LEVELS = [
 export interface PreferencesPanelProps {
   voicePrefs: VoicePreferences;
   textPrefs: TextPreferences;
+  transcriptionPrefs: TranscriptionPreferences;
   onVoicePrefsChange: (prefs: Partial<VoicePreferences>) => void;
   onTextPrefsChange: (prefs: Partial<TextPreferences>) => void;
+  onTranscriptionPrefsChange: (
+    prefs: Partial<TranscriptionPreferences>
+  ) => void;
   className?: string;
 }
 
 export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
   voicePrefs,
   textPrefs,
+  transcriptionPrefs,
   onVoicePrefsChange,
   onTextPrefsChange,
+  onTranscriptionPrefsChange,
   className = '',
 }) => {
   return (
@@ -106,7 +116,7 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
               </label>
 
               <label className='preferences-panel__row'>
-                <span>Recording Quality</span>
+                <span>Transcription Quality</span>
                 <select
                   value={voicePrefs.quality}
                   onChange={(e) =>
@@ -243,6 +253,114 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
               className='preferences-panel__number'
             />
           </label>
+        </div>
+      </section>
+
+      {/* Transcription Preferences */}
+      <section className='preferences-panel__section'>
+        <h3 className='preferences-panel__title'>Transcription Settings</h3>
+
+        <div className='preferences-panel__group'>
+          <label className='preferences-panel__row'>
+            <span>Enable Transcription</span>
+            <input
+              type='checkbox'
+              checked={transcriptionPrefs.enabled}
+              onChange={(e) =>
+                onTranscriptionPrefsChange({ enabled: e.target.checked })
+              }
+              className='preferences-panel__toggle'
+            />
+          </label>
+
+          {transcriptionPrefs.enabled && (
+            <>
+              <label className='preferences-panel__row'>
+                <span>Language</span>
+                <select
+                  value={transcriptionPrefs.language}
+                  onChange={(e) =>
+                    onTranscriptionPrefsChange({ language: e.target.value })
+                  }
+                  className='preferences-panel__select'
+                >
+                  {LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className='preferences-panel__row'>
+                <span>Max Duration (seconds)</span>
+                <input
+                  type='number'
+                  min='30'
+                  max='600'
+                  value={transcriptionPrefs.maxDuration}
+                  onChange={(e) =>
+                    onTranscriptionPrefsChange({
+                      maxDuration: Number(e.target.value),
+                    })
+                  }
+                  className='preferences-panel__number'
+                />
+              </label>
+
+              <label className='preferences-panel__row'>
+                <span>Confidence Threshold</span>
+                <div className='preferences-panel__font-size'>
+                  <input
+                    type='range'
+                    min='0'
+                    max='1'
+                    step='0.1'
+                    value={transcriptionPrefs.confidenceThreshold}
+                    onChange={(e) =>
+                      onTranscriptionPrefsChange({
+                        confidenceThreshold: Number(e.target.value),
+                      })
+                    }
+                    className='preferences-panel__slider'
+                  />
+                  <span className='preferences-panel__font-size-value'>
+                    {Math.round(transcriptionPrefs.confidenceThreshold * 100)}%
+                  </span>
+                </div>
+              </label>
+
+              <label className='preferences-panel__row'>
+                <span>Show Interim Results</span>
+                <input
+                  type='checkbox'
+                  checked={transcriptionPrefs.interimResults}
+                  onChange={(e) =>
+                    onTranscriptionPrefsChange({
+                      interimResults: e.target.checked,
+                    })
+                  }
+                  className='preferences-panel__toggle'
+                />
+              </label>
+
+              <label className='preferences-panel__row'>
+                <span>Auto-Stop After Silence (seconds)</span>
+                <input
+                  type='number'
+                  min='1'
+                  max='10'
+                  value={transcriptionPrefs.silenceTimeout}
+                  onChange={(e) =>
+                    onTranscriptionPrefsChange({
+                      silenceTimeout: Number(e.target.value),
+                    })
+                  }
+                  className='preferences-panel__number'
+                />
+              </label>
+            </>
+          )}
         </div>
       </section>
     </div>

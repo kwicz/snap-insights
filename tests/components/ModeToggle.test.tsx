@@ -26,6 +26,7 @@ describe('ModeToggle', () => {
       expect(screen.getByText('Mode')).toBeInTheDocument();
       expect(screen.getByText('Screenshot')).toBeInTheDocument();
       expect(screen.getByText('Annotation')).toBeInTheDocument();
+      expect(screen.getByText('Transcribe')).toBeInTheDocument();
       expect(screen.getByText('Alt+Shift+M')).toBeInTheDocument();
     });
 
@@ -165,7 +166,7 @@ describe('ModeToggle', () => {
       render(<ModeToggle {...defaultProps} variant='pills' />);
 
       const buttons = screen.getAllByRole('button');
-      expect(buttons).toHaveLength(2);
+      expect(buttons).toHaveLength(3);
       expect(buttons[0]).toHaveClass('mode-toggle__pill');
     });
 

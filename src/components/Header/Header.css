@@ -1,0 +1,71 @@
+.header {
+  padding: var(--content-padding);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  height: var(--header-height);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--item-spacing);
+  margin-bottom: var(--item-spacing);
+}
+
+.logo-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.logo-text {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.status {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--status-online);
+  border-radius: var(--border-radius-full);
+  transition: background-color var(--transition-base);
+}
+
+.status-dot.offline {
+  background: var(--status-offline);
+}
+
+.status-dot.error {
+  background: var(--status-error);
+}
+
+/* Animation for status dot */
+@keyframes pulse-status {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.status-dot.active {
+  animation: pulse-status 2s ease-in-out infinite;
+}

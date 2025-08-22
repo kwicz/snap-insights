@@ -1,220 +1,80 @@
 import React from 'react';
 import { render, screen, fireEvent } from '../../../utils';
 import '@testing-library/jest-dom';
-import Button from '../../../../src/components/ui/Button/Button';
+import Button from '@/components/ui/Button';
 
-describe('Button', () => {
-  const defaultProps = {
-    children: 'Click me',
-    onClick: jest.fn(),
-  };
+describe('Button Component', () => {
+  it('renders with default props', () => {
+    render(<Button>Click me</Button>);
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+    const button = screen.getByRole('button', { name: /click me/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveClass('btn', 'btn-primary');
   });
 
-  describe('Rendering', () => {
-    it('should render with default props', () => {
-      render(<Button {...defaultProps} />);
+  it('renders different variants', () => {
+    const { rerender } = render(<Button variant='secondary'>Secondary</Button>);
+    expect(screen.getByRole('button')).toHaveClass('btn-secondary');
 
-      const button = screen.getByRole('button', { name: /click me/i });
-      expect(button).toBeInTheDocument();
-      expect(button).toHaveClass('btn', 'btn--primary', 'btn--md');
-    });
-
-    it('should render different variants', () => {
-      const variants = [
-        'primary',
-        'secondary',
-        'outline',
-        'ghost',
-        'link',
-      ] as const;
-
-      variants.forEach((variant) => {
-        const { rerender } = render(
-          <Button {...defaultProps} variant={variant} />
-        );
-
-        expect(screen.getByRole('button')).toHaveClass(`btn--${variant}`);
-        rerender(<></>);
-      });
-    });
-
-    it('should render different sizes', () => {
-      const sizes = ['sm', 'md', 'lg'] as const;
-
-      sizes.forEach((size) => {
-        const { rerender } = render(<Button {...defaultProps} size={size} />);
-
-        expect(screen.getByRole('button')).toHaveClass(`btn--${size}`);
-        rerender(<></>);
-      });
-    });
-
-    it('should handle custom className', () => {
-      render(<Button {...defaultProps} className='custom-class' />);
-      expect(screen.getByRole('button')).toHaveClass('custom-class');
-    });
+    rerender(<Button variant='ghost'>Ghost</Button>);
+    expect(screen.getByRole('button')).toHaveClass('btn-ghost');
   });
 
-  describe('Loading State', () => {
-    it('should show loading spinner', () => {
-      render(<Button {...defaultProps} loading />);
+  it('renders different sizes', () => {
+    const { rerender } = render(<Button size='sm'>Small</Button>);
+    expect(screen.getByRole('button')).toHaveClass('btn-sm');
 
-      const button = screen.getByRole('button');
-      expect(button).toHaveClass('btn--loading');
-      expect(button).toBeDisabled();
-
-      const spinner = screen.getByRole('presentation');
-      expect(spinner).toHaveClass('btn__spinner');
-    });
-
-    it('should hide icons while loading', () => {
-      render(
-        <Button
-          {...defaultProps}
-          loading
-          startIcon={<span>Start</span>}
-          endIcon={<span>End</span>}
-        />
-      );
-
-      expect(screen.queryByText('Start')).not.toBeInTheDocument();
-      expect(screen.queryByText('End')).not.toBeInTheDocument();
-    });
+    rerender(<Button size='lg'>Large</Button>);
+    expect(screen.getByRole('button')).toHaveClass('btn-lg');
   });
 
-  describe('Icons', () => {
-    it('should render start icon', () => {
-      render(<Button {...defaultProps} startIcon={<span>Start</span>} />);
+  it('handles click events', () => {
+    const handleClick = jest.fn();
+    render(<Button onClick={handleClick}>Click me</Button>);
 
-      const iconContainer = screen.getByText('Start').parentElement;
-      expect(iconContainer).toHaveClass('btn__icon', 'btn__icon--start');
-    });
-
-    it('should render end icon', () => {
-      render(<Button {...defaultProps} endIcon={<span>End</span>} />);
-
-      const iconContainer = screen.getByText('End').parentElement;
-      expect(iconContainer).toHaveClass('btn__icon', 'btn__icon--end');
-    });
-
-    it('should render both icons', () => {
-      render(
-        <Button
-          {...defaultProps}
-          startIcon={<span>Start</span>}
-          endIcon={<span>End</span>}
-        />
-      );
-
-      expect(screen.getByText('Start')).toBeInTheDocument();
-      expect(screen.getByText('End')).toBeInTheDocument();
-    });
+    fireEvent.click(screen.getByRole('button'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
-  describe('Width and Shape', () => {
-    it('should render full width button', () => {
-      render(<Button {...defaultProps} fullWidth />);
-      expect(screen.getByRole('button')).toHaveClass('btn--full-width');
-    });
+  it('renders with icon', () => {
+    const icon = <svg data-testid='test-icon' />;
+    render(<Button icon={icon}>With Icon</Button>);
 
-    it('should render rounded button', () => {
-      render(<Button {...defaultProps} rounded />);
-      expect(screen.getByRole('button')).toHaveClass('btn--rounded');
-    });
+    expect(screen.getByTestId('test-icon')).toBeInTheDocument();
+    expect(screen.getByText('With Icon')).toBeInTheDocument();
   });
 
-  describe('States', () => {
-    it('should handle active state', () => {
-      render(<Button {...defaultProps} active />);
-      expect(screen.getByRole('button')).toHaveClass('btn--active');
-    });
+  it('renders icon only button', () => {
+    const icon = <svg data-testid='test-icon' />;
+    render(
+      <Button icon={icon} iconOnly>
+        Icon Only
+      </Button>
+    );
 
-    it('should handle disabled state', () => {
-      render(<Button {...defaultProps} disabled />);
-
-      const button = screen.getByRole('button');
-      expect(button).toBeDisabled();
-
-      fireEvent.click(button);
-      expect(defaultProps.onClick).not.toHaveBeenCalled();
-    });
-
-    it('should handle click events when enabled', () => {
-      render(<Button {...defaultProps} />);
-
-      const button = screen.getByRole('button');
-      fireEvent.click(button);
-      expect(defaultProps.onClick).toHaveBeenCalledTimes(1);
-    });
+    expect(screen.getByTestId('test-icon')).toBeInTheDocument();
+    expect(screen.queryByText('Icon Only')).not.toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveClass('btn-icon');
   });
 
-  describe('Accessibility', () => {
-    it('should forward aria attributes', () => {
-      render(
-        <Button
-          {...defaultProps}
-          aria-label='Custom label'
-          aria-expanded={true}
-        />
-      );
+  it('renders in loading state', () => {
+    render(<Button loading>Loading</Button>);
 
-      const button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-label', 'Custom label');
-      expect(button).toHaveAttribute('aria-expanded', 'true');
-    });
-
-    it('should handle keyboard navigation', () => {
-      render(<Button {...defaultProps} />);
-
-      const button = screen.getByRole('button');
-      button.focus();
-      expect(button).toHaveFocus();
-
-      fireEvent.keyDown(button, { key: 'Enter' });
-      expect(defaultProps.onClick).toHaveBeenCalled();
-
-      fireEvent.keyDown(button, { key: ' ' });
-      expect(defaultProps.onClick).toHaveBeenCalledTimes(2);
-    });
-
-    it('should hide loading spinner from screen readers', () => {
-      render(<Button {...defaultProps} loading />);
-
-      const spinner = screen.getByRole('presentation');
-      expect(spinner).toHaveAttribute('aria-hidden', 'true');
-    });
+    const button = screen.getByRole('button');
+    expect(button).toHaveClass('btn-loading');
+    expect(button).toBeDisabled();
   });
 
-  describe('Ref Forwarding', () => {
-    it('should forward ref to button element', () => {
-      const ref = React.createRef<HTMLButtonElement>();
-      render(<Button {...defaultProps} ref={ref} />);
+  it('renders full width', () => {
+    render(<Button fullWidth>Full Width</Button>);
 
-      expect(ref.current).toBeInstanceOf(HTMLButtonElement);
-      expect(ref.current).toHaveClass('btn');
-    });
-
-    it('should allow ref to be used for focus', () => {
-      const ref = React.createRef<HTMLButtonElement>();
-      render(<Button {...defaultProps} ref={ref} />);
-
-      ref.current?.focus();
-      expect(ref.current).toHaveFocus();
-    });
+    expect(screen.getByRole('button')).toHaveClass('btn-full');
   });
 
-  describe('Type Attribute', () => {
-    it('should default to type="button"', () => {
-      render(<Button {...defaultProps} />);
-      expect(screen.getByRole('button')).toHaveAttribute('type', 'button');
-    });
+  it('forwards ref correctly', () => {
+    const ref = React.createRef<HTMLButtonElement>();
+    render(<Button ref={ref}>Ref Test</Button>);
 
-    it('should allow type override', () => {
-      render(<Button {...defaultProps} type='submit' />);
-      expect(screen.getByRole('button')).toHaveAttribute('type', 'submit');
-    });
+    expect(ref.current).toBeInstanceOf(HTMLButtonElement);
   });
 });

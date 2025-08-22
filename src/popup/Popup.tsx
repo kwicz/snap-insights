@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { ExtensionSettings, ExtensionMode } from '@/types';
+import { ExtensionSettings } from '@/types';
 import './Popup.css';
+
+// Components
+import Header from '@/components/Header';
+import TabNav, { Tab, TabIcons } from '@/components/TabNav';
+import SettingGroup, { SettingRow } from '@/components/SettingGroup';
 import MarkerColorPicker from '@/components/MarkerColorPicker';
-import PreferencesPanel from '@/components/PreferencesPanel';
-import DirectoryPicker from '@/components/DirectoryPicker';
+import Toggle from '@/components/Toggle';
+import Button from '@/components/ui/Button';
 
 export interface PopupState {
   settings: ExtensionSettings;
@@ -15,42 +20,55 @@ export interface PopupState {
   };
 }
 
-/**
- * Main extension popup component
- */
+const TABS: Tab[] = [
+  { id: 'snap', label: 'Snap', icon: TabIcons.Snap },
+  { id: 'annotate', label: 'Annotate', icon: TabIcons.Annotate },
+  { id: 'transcribe', label: 'Transcribe', icon: TabIcons.Transcribe },
+];
+
+const DEFAULT_SETTINGS: ExtensionSettings = {
+  mode: 'screenshot',
+  markerColor: {
+    color: '#3b82f6',
+    size: 12,
+    opacity: 1,
+    style: 'solid',
+  },
+  saveLocation: {
+    path: 'Downloads',
+    createMonthlyFolders: true,
+    organizeByDomain: true,
+  },
+  voice: {
+    enabled: true,
+    autoTranscribe: true,
+    language: 'en-US',
+    maxDuration: 30,
+    quality: 'medium',
+    noiseReduction: true,
+    echoCancellation: true,
+  },
+  text: {
+    defaultFontSize: 14,
+    defaultColor: '#000000',
+    fontFamily: 'Arial, sans-serif',
+    autoSave: true,
+    spellCheck: true,
+    maxLength: 500,
+  },
+  transcription: {
+    enabled: true,
+    language: 'en-US',
+    maxDuration: 300,
+    confidenceThreshold: 0.8,
+    interimResults: true,
+    silenceTimeout: 2,
+  },
+};
+
 export const Popup: React.FC = () => {
   const [state, setState] = useState<PopupState>({
-    settings: {
-      mode: 'screenshot',
-      markerColor: {
-        color: '#00ff00',
-        opacity: 1,
-        size: 12,
-        style: 'solid',
-      },
-      saveLocation: {
-        path: 'Downloads',
-        createMonthlyFolders: true,
-        organizeByDomain: true,
-      },
-      voice: {
-        enabled: true,
-        autoTranscribe: true,
-        language: 'en-US',
-        maxDuration: 60,
-        quality: 'medium',
-        noiseReduction: true,
-        echoCancellation: true,
-      },
-      text: {
-        defaultFontSize: 16,
-        defaultColor: '#000000',
-        fontFamily: 'Arial, sans-serif',
-        spellCheck: true,
-        autoSave: true,
-        maxLength: 500,
-      },
-    },
+    settings: DEFAULT_SETTINGS,
     isLoading: true,
     error: null,
     stats: {
@@ -59,10 +77,38 @@ export const Popup: React.FC = () => {
     },
   });
 
+  const [activeTab, setActiveTab] = useState(() => {
+    switch (state.settings.mode) {
+      case 'screenshot':
+        return 'snap';
+      case 'annotation':
+        return 'annotate';
+      case 'transcribe':
+        return 'transcribe';
+      default:
+        return 'snap';
+    }
+  });
+
   // Load settings and stats on mount
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Keep tab selection in sync with mode
+  useEffect(() => {
+    const tab =
+      state.settings.mode === 'screenshot'
+        ? 'snap'
+        : state.settings.mode === 'annotation'
+        ? 'annotate'
+        : state.settings.mode === 'transcribe'
+        ? 'transcribe'
+        : activeTab;
+    if (tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [state.settings.mode]);
 
   const loadInitialData = async () => {
     try {
@@ -83,7 +129,10 @@ export const Popup: React.FC = () => {
 
       setState((prev) => ({
         ...prev,
-        settings: settingsResponse.settings || prev.settings,
+        settings: {
+          ...DEFAULT_SETTINGS,
+          ...settingsResponse.settings,
+        },
         stats: {
           totalScreenshots: statsResponse.stats?.totalScreenshots || 0,
           lastCaptured: statsResponse.stats?.lastSaved || null,
@@ -129,37 +178,22 @@ export const Popup: React.FC = () => {
     }
   };
 
-  const toggleMode = async () => {
-    const newMode: ExtensionMode =
-      state.settings.mode === 'screenshot' ? 'annotation' : 'screenshot';
-    await updateSettings({ mode: newMode });
+  const handleHelp = () => {
+    chrome.tabs.create({
+      url: 'https://github.com/your-repo/insight-clip/wiki',
+    });
   };
 
-  const openOptionsPage = () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html') });
+  const handleStartCapture = () => {
+    chrome.runtime.sendMessage({ type: 'START_CAPTURE' });
     window.close();
-  };
-
-  const formatLastCaptured = (timestamp: number | null): string => {
-    if (!timestamp) return 'Never';
-
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
   };
 
   if (state.isLoading) {
     return (
       <div className='popup popup--loading'>
         <div className='popup__loading'>
-          <div className='popup__spinner'></div>
+          <div className='popup__spinner' />
           <span>Loading...</span>
         </div>
       </div>
@@ -169,174 +203,231 @@ export const Popup: React.FC = () => {
   return (
     <div className='popup'>
       {/* Header */}
-      <header className='popup__header'>
-        <div className='popup__logo'>
-          <span className='popup__logo-icon'>📷</span>
-          <h1 className='popup__title'>Insight Clip</h1>
-        </div>
-        <div className='popup__version'>v1.0.0</div>
-      </header>
+      <Header
+        status={state.error ? 'error' : 'online'}
+        statusText={state.error || 'Ready to capture'}
+      />
 
-      {/* Error Message */}
-      {state.error && (
-        <div className='popup__error'>
-          <span className='popup__error-icon'>⚠️</span>
-          <span className='popup__error-message'>{state.error}</span>
-          <button
-            className='popup__error-dismiss'
-            onClick={() => setState((prev) => ({ ...prev, error: null }))}
-            aria-label='Dismiss error'
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {/* Tab Navigation */}
+      <TabNav
+        tabs={TABS}
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          const newMode =
+            tab === 'snap'
+              ? 'screenshot'
+              : tab === 'annotate'
+              ? 'annotation'
+              : tab === 'transcribe'
+              ? 'transcribe'
+              : state.settings.mode;
+          updateSettings({ mode: newMode });
+        }}
+      />
 
-      {/* Mode Toggle */}
-      <section className='popup__section'>
-        <h2 className='popup__section-title'>Current Mode</h2>
-        <div className='popup__mode-toggle'>
-          <button
-            className={`popup__mode-button ${
-              state.settings.mode === 'screenshot'
-                ? 'popup__mode-button--active'
-                : ''
-            }`}
-            onClick={toggleMode}
-          >
-            <span className='popup__mode-icon'>📷</span>
-            <div className='popup__mode-info'>
-              <span className='popup__mode-name'>Screenshot</span>
-              <span className='popup__mode-description'>
-                Alt+Click to capture
-              </span>
+      {/* Tab Content */}
+      <div className='popup-content'>
+        {/* Snap Tab */}
+        <div className={`tab-pane ${activeTab === 'snap' ? 'active' : ''}`}>
+          <MarkerColorPicker
+            value={state.settings.markerColor}
+            onChange={(markerColor) => updateSettings({ markerColor })}
+          />
+
+          <SettingGroup label='Capture Settings'>
+            <SettingRow
+              title='Include page URL'
+              description='Add URL to filename'
+            >
+              <Toggle
+                checked={state.settings.saveLocation.organizeByDomain}
+                onChange={(organizeByDomain) =>
+                  updateSettings({
+                    saveLocation: {
+                      ...state.settings.saveLocation,
+                      organizeByDomain,
+                    },
+                  })
+                }
+              />
+            </SettingRow>
+          </SettingGroup>
+
+          <SettingGroup label='Usage Statistics'>
+            <div className='stats-grid'>
+              <div className='stat-card'>
+                <div className='stat-number'>
+                  {state.stats.totalScreenshots}
+                </div>
+                <div className='stat-label'>Today</div>
+              </div>
+              <div className='stat-card'>
+                <div className='stat-number'>147</div>
+                <div className='stat-label'>Total</div>
+              </div>
             </div>
-          </button>
+          </SettingGroup>
+        </div>
 
-          <button
-            className={`popup__mode-button ${
-              state.settings.mode === 'annotation'
-                ? 'popup__mode-button--active'
-                : ''
-            }`}
-            onClick={toggleMode}
+        {/* Annotate Tab */}
+        <div className={`tab-pane ${activeTab === 'annotate' ? 'active' : ''}`}>
+          <SettingGroup
+            label='Default Text'
+            description='Placeholder text for new annotations'
           >
-            <span className='popup__mode-icon'>✏️</span>
-            <div className='popup__mode-info'>
-              <span className='popup__mode-name'>Annotation</span>
-              <span className='popup__mode-description'>Click to annotate</span>
-            </div>
-          </button>
-        </div>
-      </section>
+            <input
+              type='text'
+              className='input-field'
+              placeholder='Enter default text...'
+              value='UX Research Note'
+              onChange={(e) =>
+                updateSettings({
+                  text: { ...state.settings.text },
+                })
+              }
+            />
+          </SettingGroup>
 
-      {/* Voice and Text Settings */}
-      <section className='popup__section'>
-        <h2 className='popup__section-title'>Input Settings</h2>
-        <PreferencesPanel
-          voicePrefs={state.settings.voice}
-          textPrefs={state.settings.text}
-          onVoicePrefsChange={(prefs) =>
-            updateSettings({ voice: { ...state.settings.voice, ...prefs } })
-          }
-          onTextPrefsChange={(prefs) =>
-            updateSettings({ text: { ...state.settings.text, ...prefs } })
-          }
-          className='popup__preferences'
-        />
-      </section>
-
-      {/* Save Location */}
-      <section className='popup__section'>
-        <h2 className='popup__section-title'>Save Location</h2>
-        <DirectoryPicker
-          value={state.settings.saveLocation}
-          onChange={(saveLocation) => updateSettings({ saveLocation })}
-          className='popup__directory-picker'
-        />
-      </section>
-
-      {/* Statistics */}
-      <section className='popup__section'>
-        <h2 className='popup__section-title'>Statistics</h2>
-        <div className='popup__stats'>
-          <div className='popup__stat'>
-            <span className='popup__stat-value'>
-              {state.stats.totalScreenshots}
-            </span>
-            <span className='popup__stat-label'>Screenshots</span>
-          </div>
-          <div className='popup__stat'>
-            <span className='popup__stat-value'>
-              {formatLastCaptured(state.stats.lastCaptured)}
-            </span>
-            <span className='popup__stat-label'>Last Captured</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Instructions */}
-      <section className='popup__section'>
-        <h2 className='popup__section-title'>How to Use</h2>
-        <div className='popup__instructions'>
-          {state.settings.mode === 'screenshot' ? (
-            <div className='popup__instruction'>
-              <span className='popup__instruction-icon'>⌨️</span>
-              <span className='popup__instruction-text'>
-                Hold <kbd>Alt</kbd> and click anywhere to capture a screenshot
-              </span>
-            </div>
-          ) : (
-            <div className='popup__instruction'>
-              <span className='popup__instruction-icon'>✏️</span>
-              <span className='popup__instruction-text'>
-                Click anywhere to add text or voice annotations
-              </span>
-            </div>
-          )}
-
-          <div className='popup__instruction'>
-            <span className='popup__instruction-icon'>⌨️</span>
-            <span className='popup__instruction-text'>
-              Press <kbd>Alt+Shift+S</kbd> to quick capture
-            </span>
-          </div>
-
-          <div className='popup__instruction'>
-            <span className='popup__instruction-icon'>⌨️</span>
-            <span className='popup__instruction-text'>
-              Press <kbd>Alt+Shift+M</kbd> to toggle mode
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className='popup__footer'>
-        <button className='popup__footer-button' onClick={openOptionsPage}>
-          Advanced Settings
-        </button>
-
-        <div className='popup__footer-links'>
-          <a
-            href='https://github.com/your-repo/insight-clip'
-            target='_blank'
-            rel='noopener noreferrer'
-            className='popup__footer-link'
+          <SettingGroup
+            label='Text Style'
+            description='Customize annotation appearance'
           >
-            Help
-          </a>
-          <span className='popup__footer-separator'>•</span>
-          <a
-            href='https://github.com/your-repo/insight-clip/issues'
-            target='_blank'
-            rel='noopener noreferrer'
-            className='popup__footer-link'
-          >
-            Feedback
-          </a>
+            <select
+              className='select-field'
+              value={state.settings.text.defaultFontSize}
+              onChange={(e) =>
+                updateSettings({
+                  text: {
+                    ...state.settings.text,
+                    defaultFontSize: Number(e.target.value),
+                  },
+                })
+              }
+            >
+              <option value={12}>Small (12px)</option>
+              <option value={14}>Medium (14px)</option>
+              <option value={16}>Large (16px)</option>
+            </select>
+          </SettingGroup>
+
+          <SettingGroup label='Auto-save'>
+            <SettingRow
+              title='Save on Enter key'
+              description='Automatically save when pressing Enter'
+            >
+              <Toggle
+                checked={state.settings.text.autoSave}
+                onChange={(autoSave) =>
+                  updateSettings({
+                    text: { ...state.settings.text, autoSave },
+                  })
+                }
+              />
+            </SettingRow>
+          </SettingGroup>
         </div>
-      </footer>
+
+        {/* Transcribe Tab */}
+        <div
+          className={`tab-pane ${activeTab === 'transcribe' ? 'active' : ''}`}
+        >
+          <SettingGroup
+            label='Transcription Quality'
+            description='Balance between quality and file size'
+          >
+            <select
+              className='select-field'
+              value={state.settings.transcription.confidenceThreshold}
+              onChange={(e) =>
+                updateSettings({
+                  transcription: {
+                    ...state.settings.transcription,
+                    confidenceThreshold: Number(e.target.value),
+                  },
+                })
+              }
+            >
+              <option value='0.6'>Low (60% confidence)</option>
+              <option value='0.8'>Medium (80% confidence)</option>
+              <option value='0.9'>High (90% confidence)</option>
+            </select>
+          </SettingGroup>
+
+          <SettingGroup label='Auto-transcribe'>
+            <SettingRow
+              title='Convert speech to text'
+              description='Automatically transcribe recordings'
+            >
+              <Toggle
+                checked={state.settings.transcription.enabled}
+                onChange={(enabled) =>
+                  updateSettings({
+                    transcription: { ...state.settings.transcription, enabled },
+                  })
+                }
+              />
+            </SettingRow>
+          </SettingGroup>
+
+          <SettingGroup
+            label='Transcription Length'
+            description='Maximum length per recording'
+          >
+            <select
+              className='select-field'
+              value={state.settings.transcription.maxDuration}
+              onChange={(e) =>
+                updateSettings({
+                  transcription: {
+                    ...state.settings.transcription,
+                    maxDuration: Number(e.target.value),
+                  },
+                })
+              }
+            >
+              <option value={15}>15 seconds</option>
+              <option value={30}>30 seconds</option>
+              <option value={60}>60 seconds</option>
+              <option value={0}>Unlimited</option>
+            </select>
+          </SettingGroup>
+
+          <SettingGroup
+            label='Language'
+            description='Speech recognition language'
+          >
+            <select
+              className='select-field'
+              value={state.settings.transcription.language}
+              onChange={(e) =>
+                updateSettings({
+                  transcription: {
+                    ...state.settings.transcription,
+                    language: e.target.value,
+                  },
+                })
+              }
+            >
+              <option value='en-US'>English (US)</option>
+              <option value='en-GB'>English (UK)</option>
+              <option value='es'>Spanish</option>
+              <option value='fr'>French</option>
+              <option value='de'>German</option>
+            </select>
+          </SettingGroup>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className='action-buttons'>
+        <Button variant='secondary' onClick={handleHelp}>
+          Help
+        </Button>
+        <Button variant='primary' onClick={handleStartCapture}>
+          Start Capturing
+        </Button>
+      </div>
     </div>
   );
 };

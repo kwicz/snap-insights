@@ -49,6 +49,13 @@ export const ModeToggle: React.FC<ModeToggleProps> = ({
       description: 'Click to annotate',
       shortcut: 'Click',
     },
+    {
+      mode: 'transcribe',
+      icon: '🎙️',
+      label: 'Transcribe',
+      description: 'Click to transcribe speech',
+      shortcut: 'Click',
+    },
   ];
 
   // Handle mode change with debouncing

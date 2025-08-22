@@ -1,4 +1,8 @@
-import { ScreenshotData, ExtensionSettings } from '@/types';
+import {
+  ScreenshotData,
+  ExtensionSettings,
+  TranscriptionPreferences,
+} from '@/types';
 import { ScreenshotUtils } from './screenshot';
 
 // Constants for optimization
@@ -338,11 +342,22 @@ export class FileStorageManager {
   ): Promise<void> {
     const metadataTask = new Promise<void>(async (resolve, reject) => {
       try {
+        // Get transcription settings if available
+        const { settings } = await chrome.storage.local.get(['settings']);
+        const transcriptionSettings = settings?.transcription;
+
         const metadata = {
           ...screenshotData,
           downloadId,
           savedPath: fullPath,
           savedAt: Date.now(),
+          transcription: transcriptionSettings
+            ? {
+                language: transcriptionSettings.language,
+                confidence: transcriptionSettings.confidenceThreshold,
+                duration: transcriptionSettings.maxDuration,
+              }
+            : undefined,
         };
 
         // Store metadata in chunks if large
@@ -534,6 +549,59 @@ export class FileStorageManager {
     const metadataResults = result ?? {};
     return Object.values(metadataResults);
   }
+  /**
+   * Save transcription settings
+   */
+  async saveTranscriptionSettings(
+    settings: TranscriptionPreferences
+  ): Promise<void> {
+    try {
+      const { settings: currentSettings = {} } = await chrome.storage.local.get(
+        ['settings']
+      );
+      await chrome.storage.local.set({
+        settings: {
+          ...currentSettings,
+          transcription: settings,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to save transcription settings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get transcription settings
+   */
+  async getTranscriptionSettings(): Promise<TranscriptionPreferences | null> {
+    try {
+      const { settings } = await chrome.storage.local.get(['settings']);
+      return settings?.transcription || null;
+    } catch (error) {
+      console.error('Failed to get transcription settings:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clean up transcription data
+   */
+  async cleanupTranscriptionData(): Promise<void> {
+    try {
+      const allScreenshots = await this.getAllScreenshots();
+      const transcriptionKeys = allScreenshots
+        .filter((screenshot) => screenshot.transcription)
+        .map((screenshot) => `transcription_${screenshot.downloadId}`);
+
+      if (transcriptionKeys.length > 0) {
+        await chrome.storage.local.remove(transcriptionKeys);
+      }
+    } catch (error) {
+      console.error('Failed to clean up transcription data:', error);
+    }
+  }
+
   async cleanupOldData(
     olderThanDays: number = 90
   ): Promise<{ removed: number; sizeFreed: number }> {
@@ -553,10 +621,11 @@ export class FileStorageManager {
       return total + (screenshot.fileSize || 0);
     }, 0);
 
-    // Remove metadata
-    const keysToRemove = toRemove.map(
-      (screenshot) => `screenshot_${screenshot.downloadId}`
-    );
+    // Remove metadata and transcription data
+    const keysToRemove = toRemove.flatMap((screenshot) => [
+      `screenshot_${screenshot.downloadId}`,
+      `transcription_${screenshot.downloadId}`,
+    ]);
     await chrome.storage.local.remove(keysToRemove);
 
     // Update screenshot list

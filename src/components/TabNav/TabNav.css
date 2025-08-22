@@ -1,0 +1,99 @@
+.tab-nav {
+  display: flex;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  height: var(--tab-height);
+}
+
+.tab-button {
+  flex: 1;
+  padding: var(--item-spacing);
+  border: none;
+  background: var(--bg-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-base);
+  color: var(--primary-500);
+  border-radius: 0;
+  position: relative;
+}
+
+.tab-button:first-child {
+  border-top-left-radius: 0;
+}
+
+.tab-button:last-child {
+  border-top-right-radius: 0;
+}
+
+.tab-button.active {
+  background: var(--primary-500);
+  color: white;
+}
+
+.tab-button:not(.active):hover {
+  background: var(--bg-tertiary);
+}
+
+.tab-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  transition: transform var(--transition-base);
+}
+
+.tab-button:hover .tab-icon {
+  transform: scale(1.1);
+}
+
+.tab-label {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Active indicator line */
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--primary-500);
+  transition: transform var(--transition-base);
+}
+
+/* Tab transition animations */
+.tab-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-500);
+  transform: translateY(100%);
+  transition: transform var(--transition-base);
+  z-index: 0;
+}
+
+.tab-button.active::before {
+  transform: translateY(0);
+}
+
+.tab-icon,
+.tab-label {
+  position: relative;
+  z-index: 1;
+}

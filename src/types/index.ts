@@ -90,6 +90,24 @@ export interface SaveLocationSettings {
 /**
  * Combined extension settings
  */
+/**
+ * Transcription preferences
+ */
+export interface TranscriptionPreferences {
+  /** Enable transcription feature */
+  enabled: boolean;
+  /** Language code (e.g., 'en-US') */
+  language: string;
+  /** Maximum duration in seconds */
+  maxDuration: number;
+  /** Minimum confidence threshold (0-1) */
+  confidenceThreshold: number;
+  /** Enable interim results */
+  interimResults: boolean;
+  /** Auto-stop after silence duration (seconds) */
+  silenceTimeout: number;
+}
+
 export interface ExtensionSettings {
   /** Current operation mode */
   mode: ExtensionMode;
@@ -101,6 +119,8 @@ export interface ExtensionSettings {
   voice: VoicePreferences;
   /** Text preferences */
   text: TextPreferences;
+  /** Transcription preferences */
+  transcription: TranscriptionPreferences;
 }
 
 /**
@@ -121,7 +141,7 @@ export interface AnnotationData {
 /**
  * Extension operation mode
  */
-export type ExtensionMode = 'screenshot' | 'annotation';
+export type ExtensionMode = 'screenshot' | 'annotation' | 'transcribe';
 
 /**
  * Error categories for better error handling
