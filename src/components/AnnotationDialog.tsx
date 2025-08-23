@@ -215,13 +215,6 @@ export const AnnotationDialog: React.FC<AnnotationDialogProps> = ({
             Capture
           </button>
         </div>
-
-        {/* Keyboard shortcuts hint */}
-        <div className='annotation-dialog__hint'>
-          <small>
-            Press <kbd>Ctrl+Enter</kbd> to capture, <kbd>Esc</kbd> to close
-          </small>
-        </div>
       </div>
 
       {/* Pointer arrow */}

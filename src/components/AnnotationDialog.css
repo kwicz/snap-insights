@@ -1,8 +1,8 @@
 /* AnnotationDialog Component Styles */
 
 .annotation-dialog {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+  font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
   line-height: 1.4;
 }
@@ -10,7 +10,7 @@
 .annotation-dialog__container {
   background: #ffffff;
   border: 1px solid #e1e5e9;
-  border-radius: 8px;
+  border-radius: 14px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   width: 320px;
   max-width: 90vw;
@@ -26,7 +26,7 @@
   justify-content: space-between;
   padding: 16px 20px 12px;
   border-bottom: 1px solid #f1f3f4;
-  background: #fafbfc;
+  background: #ffffff;
 }
 
 .annotation-dialog__title {
@@ -51,8 +51,9 @@
   border-radius: 50%;
   transition: background-color 0.2s ease;
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
 }
 
 .annotation-dialog__close:hover {
@@ -68,6 +69,7 @@
 /* Content */
 .annotation-dialog__content {
   padding: 0;
+  background: #ffffff;
 }
 
 .annotation-dialog__textarea {
@@ -75,13 +77,14 @@
   min-height: 80px;
   padding: 12px;
   border: 2px solid #e1e5e9;
-  border-radius: 6px;
+  border-radius: 14px;
   font-family: inherit;
   font-size: 14px;
   line-height: 1.4;
   resize: vertical;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
+  background: #ffffff;
 }
 
 .annotation-dialog__textarea:focus {
@@ -123,7 +126,7 @@
   flex: 1;
   padding: 10px 16px;
   border: none;
-  border-radius: 6px;
+  border-radius: 14px;
   font-family: inherit;
   font-size: 14px;
   font-weight: 500;
@@ -145,17 +148,17 @@
 }
 
 .annotation-dialog__button--primary {
-  background: #2196f3;
+  background: #0277c0;
   color: #ffffff;
-  border-radius: 20px;
+  border-radius: 14px;
   padding: 12px 24px;
   font-weight: 600;
-  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+  box-shadow: 0 2px 4px rgba(2, 119, 192, 0.3);
 }
 
 .annotation-dialog__button--primary:hover:not(:disabled) {
-  background: #1976d2;
-  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+  background: #0266a2;
+  box-shadow: 0 4px 8px rgba(2, 119, 192, 0.4);
 }
 
 .annotation-dialog__button--primary:disabled {
@@ -252,44 +255,44 @@
 /* Dark mode support (if needed) */
 @media (prefers-color-scheme: dark) {
   .annotation-dialog__container {
-    background: #2d3748;
+    background: #ffffff;
     border-color: #4a5568;
-    color: #e2e8f0;
+    color: #1a1a1a;
   }
 
   .annotation-dialog__header,
   .annotation-dialog__actions {
-    background: #1a202c;
+    background: #ffffff;
     border-color: #4a5568;
   }
 
   .annotation-dialog__title {
-    color: #e2e8f0;
+    color: #1a1a1a;
   }
 
   .annotation-dialog__textarea {
-    background: #2d3748;
+    background: #ffffff;
     border-color: #4a5568;
-    color: #e2e8f0;
+    color: #1a1a1a;
   }
 
   .annotation-dialog__textarea:focus {
-    border-color: #63b3ed;
-    box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+    border-color: #0277c0;
+    box-shadow: 0 0 0 3px rgba(2, 119, 192, 0.1);
   }
 
   .annotation-dialog__button--secondary {
-    background: #2d3748;
+    background: #ffffff;
     border-color: #4a5568;
-    color: #e2e8f0;
+    color: #1a1a1a;
   }
 
   .annotation-dialog__button--secondary:hover {
-    background: #4a5568;
+    background: #f8f9fa;
   }
 
   .annotation-dialog__arrow {
-    background: #2d3748;
+    background: #ffffff;
     border-color: #4a5568;
   }
 }

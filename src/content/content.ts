@@ -8,6 +8,7 @@ import {
   ActivateCaptureModeMessage,
   DeactivateCaptureModeMessage,
 } from '@/types';
+import { getExtensionState, onStateChange, ExtensionState } from '@/utils/state-manager';
 import { createRoot } from 'react-dom/client';
 import { AnnotationDialog } from '@/components/AnnotationDialog';
 import { TranscriptionDialog } from '@/components/TranscriptionDialog';
@@ -74,11 +75,13 @@ if (document.readyState === 'loading') {
     console.warn('INSIGHT-CLIP: DOMContentLoaded fired');
     createDebugBox();
     loadSettings();
+    loadExtensionState();
   });
 } else {
   console.warn('INSIGHT-CLIP: Document already loaded');
   createDebugBox();
   loadSettings();
+  loadExtensionState();
 }
 
 // Event listeners
@@ -149,8 +152,8 @@ chrome.runtime.onMessage.addListener(
           updateCursorState();
         }
 
-        // If in screenshot mode, trigger screenshot mode
-        if (currentSettings?.mode === 'screenshot') {
+        // If in snap mode, trigger screenshot mode
+        if (currentSettings?.mode === 'snap') {
           triggerScreenshotMode();
         }
 
@@ -198,6 +201,49 @@ window.addEventListener('message', (event) => {
   }
 });
 
+// Load extension state from centralized storage
+async function loadExtensionState(): Promise<void> {
+  try {
+    console.warn('INSIGHT-CLIP: Loading extension state...');
+    const state = await getExtensionState();
+    
+    console.warn('INSIGHT-CLIP: Extension state loaded:', state);
+    
+    // Update content script state
+    extensionActive = state.isActive;
+    selectedIcon = state.selectedIcon;
+    
+    // Update current settings mode if we have settings
+    if (currentSettings && state.isActive) {
+      currentSettings = {
+        ...currentSettings,
+        mode: state.currentMode as any, // Convert to ExtensionMode
+      };
+      console.warn('INSIGHT-CLIP: Updated current mode to:', state.currentMode);
+    }
+    
+    updateCursorState();
+    
+    // Listen for state changes
+    onStateChange((newState: ExtensionState) => {
+      console.warn('INSIGHT-CLIP: State changed:', newState);
+      extensionActive = newState.isActive;
+      selectedIcon = newState.selectedIcon;
+      
+      if (currentSettings) {
+        currentSettings = {
+          ...currentSettings,
+          mode: newState.currentMode as any,
+        };
+      }
+      updateCursorState();
+    });
+    
+  } catch (error) {
+    console.error('INSIGHT-CLIP: Failed to load extension state:', error);
+  }
+}
+
 // Load settings from background
 async function loadSettings(): Promise<void> {
   try {
@@ -228,7 +274,7 @@ async function loadSettings(): Promise<void> {
       console.error('INSIGHT-CLIP: No settings received from background');
       // Try to use default settings
       currentSettings = {
-        mode: 'screenshot',
+        mode: 'snap',
         markerColor: DEFAULT_MARKER_SETTINGS,
         saveLocation: {
           path: 'Downloads/Screenshots',
@@ -318,45 +364,50 @@ function handleClick(event: MouseEvent): void {
   };
 
   // Handle based on mode, extension active state, and Alt key
+  console.log('CONTENT: Click handler - extensionActive:', extensionActive, 'mode:', currentSettings?.mode, 'altKey:', event.altKey);
+  
   if (!extensionActive) {
     debugBox.style.backgroundColor = 'red';
-    console.warn('Action not taken: Extension not active');
+    console.warn('CONTENT: Action not taken - Extension not active');
     return;
   }
 
   // Require Alt+Click for all actions
   if (!event.altKey) {
     debugBox.style.backgroundColor = 'red';
-    console.warn('Action not taken: Alt key not pressed');
+    console.warn('CONTENT: Action not taken - Alt key not pressed');
     return;
   }
+
+  console.log('CONTENT: Processing click with mode:', currentSettings?.mode);
 
   // Handle different modes
   switch (currentSettings?.mode) {
     case 'snap':
-    case 'screenshot':
       // SNAP MODE: Direct screenshot with touchpoint icon at click location (Alt+Click)
+      console.log('CONTENT: SNAP MODE - Taking screenshot');
       debugBox.style.backgroundColor = 'green';
       showClickFeedback(clickCoordinates);
       captureScreenshotWithTouchpoint(clickCoordinates);
       break;
       
     case 'annotate':
-    case 'annotation':
       // ANNOTATION MODE: Show dialog for text input, then screenshot with touchpoint + text (Alt+Click)
+      console.log('CONTENT: ANNOTATE MODE - Showing annotation dialog');
       debugBox.style.backgroundColor = 'blue';
       showAnnotationDialog(clickCoordinates);
       break;
       
     case 'transcribe':
       // TRANSCRIBE MODE: Voice recording and transcription (Alt+Click)
+      console.log('CONTENT: TRANSCRIBE MODE - Showing transcription dialog');
       debugBox.style.backgroundColor = 'purple';
       showTranscriptionDialog(clickCoordinates);
       break;
       
     default:
       debugBox.style.backgroundColor = 'red';
-      console.warn('Action not taken: Invalid mode', currentSettings?.mode);
+      console.warn('CONTENT: Action not taken - Invalid mode:', currentSettings?.mode);
       return;
   }
 
@@ -373,7 +424,7 @@ function handleClick(event: MouseEvent): void {
 // Handle mouse move for cursor updates
 function handleMouseMove(event: MouseEvent): void {
   // Update cursor state if needed
-  if (isAltPressed && currentSettings?.mode === 'screenshot') {
+  if (isAltPressed && currentSettings?.mode === 'snap') {
     updateCursorState();
   }
 }
@@ -383,7 +434,7 @@ function updateCursorState(): void {
   if (!currentSettings) return;
 
   const shouldShowCrosshair =
-    isAltPressed && currentSettings.mode === 'screenshot';
+    isAltPressed && currentSettings.mode === 'snap';
 
   if (shouldShowCrosshair && !isScreenshotMode) {
     // Store original cursor and set crosshair

@@ -279,7 +279,7 @@ export async function handleModeToggle(): Promise<{ mode: ExtensionMode }> {
 
     // Toggle mode
     const newMode: ExtensionMode =
-      currentMode === 'screenshot' ? 'annotation' : 'screenshot';
+      currentMode === 'snap' ? 'annotate' : 'snap';
 
     // Update settings
     await handleSettingsUpdate({ mode: newMode });
@@ -417,12 +417,16 @@ export async function handleStartCapture(
  */
 export async function updateBadge(mode: ExtensionMode): Promise<void> {
   let text = 'S';
-  let title = 'Screenshot Mode';
+  let title = 'Snap Mode';
 
   switch (mode) {
-    case 'annotation':
+    case 'snap':
+      text = 'S';
+      title = 'Snap Mode';
+      break;
+    case 'annotate':
       text = 'A';
-      title = 'Annotation Mode';
+      title = 'Annotate Mode';
       break;
     case 'transcribe':
       text = 'T';
@@ -430,7 +434,7 @@ export async function updateBadge(mode: ExtensionMode): Promise<void> {
       break;
     default:
       text = 'S';
-      title = 'Screenshot Mode';
+      title = 'Snap Mode';
   }
 
   await chrome.action.setBadgeText({ text });
@@ -600,6 +604,6 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     };
 
     await chrome.storage.sync.set({ settings: defaultSettings });
-    await updateBadge('screenshot');
+    await updateBadge('snap');
   }
 });
