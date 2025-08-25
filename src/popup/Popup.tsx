@@ -62,7 +62,7 @@ export const Popup: React.FC = () => {
     settings: DEFAULT_SETTINGS,
     isLoading: false,
     error: null,
-    activeMode: 'snap', // Default to snap mode
+    activeMode: 'inactive', // Default to OFF state
     selectedIcon: 'blue', // Default to blue touchpoint
     stats: {
       totalScreenshots: 0,
@@ -70,8 +70,77 @@ export const Popup: React.FC = () => {
     },
   });
 
-  // Ensure popup closes when clicking outside (browser default behavior)
+  // Load extension state when popup opens
   useEffect(() => {
+    const loadExtensionState = async () => {
+      try {
+        setState((prev) => ({ ...prev, isLoading: true }));
+
+        // Test background script connection first
+        const testResponse = await chrome.runtime.sendMessage({
+          type: 'TEST_MESSAGE',
+        });
+        console.log('Background connection test:', testResponse);
+
+        if (!testResponse || !testResponse.success) {
+          throw new Error('Background script not responding');
+        }
+
+        // Get current extension state from storage
+        const result = await chrome.storage.local.get([
+          'extensionActive',
+          'currentMode',
+          'selectedIcon',
+        ]);
+
+        // Ensure proper boolean conversion and default values
+        let isActive = result.extensionActive === true;
+        const mode = result.currentMode || 'snap';
+        const icon = result.selectedIcon || 'blue';
+
+        // If storage says extension is active, verify it's actually working
+        if (isActive) {
+          try {
+            // Test if content script is actually active on current tab
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab?.id) {
+              const pingResponse = await chrome.tabs.sendMessage(tab.id, { type: 'PING' });
+              
+              // If content script doesn't respond, extension isn't actually active
+              if (!pingResponse?.success) {
+                isActive = false;
+                await chrome.storage.local.set({ extensionActive: false });
+              }
+            } else {
+              isActive = false;
+              await chrome.storage.local.set({ extensionActive: false });
+            }
+          } catch (error) {
+            isActive = false;
+            await chrome.storage.local.set({ extensionActive: false });
+          }
+        }
+
+        setState((prev) => ({
+          ...prev,
+          activeMode: isActive ? mode : 'inactive',
+          selectedIcon: icon,
+          isLoading: false,
+        }));
+      } catch (error) {
+        console.error('Failed to load extension state:', error);
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: `Failed to load extension state: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+        }));
+      }
+    };
+
+    loadExtensionState();
+
     const handleWindowBlur = () => {
       // The popup will automatically close when focus is lost
       // This is just to ensure any cleanup if needed
@@ -84,19 +153,65 @@ export const Popup: React.FC = () => {
     };
   }, []);
 
-  const handleModeSelect = (mode: 'snap' | 'annotate' | 'transcribe') => {
+  const handleModeSelect = async (mode: 'snap' | 'annotate' | 'transcribe') => {
     setState((prev) => ({
       ...prev,
       activeMode: mode,
       error: null,
     }));
+
+    // If extension is currently active, update the mode immediately
+    if (state.activeMode !== 'inactive') {
+      try {
+        const response = await chrome.runtime.sendMessage({
+          type: 'ACTIVATE_EXTENSION',
+          data: {
+            mode,
+            selectedIcon: state.selectedIcon,
+          },
+        });
+
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to update mode');
+        }
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          error: `Failed to update mode: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`,
+        }));
+      }
+    }
   };
 
-  const handleIconSelect = (icon: 'light' | 'blue' | 'dark') => {
+  const handleIconSelect = async (icon: 'light' | 'blue' | 'dark') => {
     setState((prev) => ({
       ...prev,
       selectedIcon: icon,
     }));
+
+    // Persist the selected icon to storage
+    try {
+      await chrome.storage.local.set({ selectedIcon: icon });
+
+      // If extension is currently active, update the mode with new icon
+      if (state.activeMode !== 'inactive') {
+        const response = await chrome.runtime.sendMessage({
+          type: 'ACTIVATE_EXTENSION',
+          data: {
+            mode: state.activeMode,
+            selectedIcon: icon,
+          },
+        });
+
+        if (!response.success) {
+          console.error('Failed to update active extension with new icon:', response.error);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save icon selection:', error);
+    }
   };
 
   const handleToggleExtension = async (enabled: boolean) => {
@@ -109,7 +224,7 @@ export const Popup: React.FC = () => {
           state.activeMode !== 'inactive' ? state.activeMode : 'snap';
 
         // Send message to background script to activate extension
-        await chrome.runtime.sendMessage({
+        const response = await chrome.runtime.sendMessage({
           type: 'ACTIVATE_EXTENSION',
           data: {
             mode,
@@ -117,28 +232,38 @@ export const Popup: React.FC = () => {
           },
         });
 
-        setState((prev) => ({
-          ...prev,
-          activeMode: mode,
-          isLoading: false,
-        }));
+        if (response.success) {
+          setState((prev) => ({
+            ...prev,
+            activeMode: mode,
+            isLoading: false,
+          }));
+        } else {
+          throw new Error(response.error || 'Failed to activate extension');
+        }
       } else {
         // Send message to background script to deactivate extension
-        await chrome.runtime.sendMessage({
+        const response = await chrome.runtime.sendMessage({
           type: 'DEACTIVATE_EXTENSION',
         });
 
-        setState((prev) => ({
-          ...prev,
-          activeMode: 'inactive',
-          isLoading: false,
-        }));
+        if (response.success) {
+          setState((prev) => ({
+            ...prev,
+            activeMode: 'inactive',
+            isLoading: false,
+          }));
+        } else {
+          throw new Error(response.error || 'Failed to deactivate extension');
+        }
       }
     } catch (error) {
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: `Failed to ${enabled ? 'activate' : 'deactivate'} extension`,
+        error: `Failed to ${enabled ? 'activate' : 'deactivate'} extension: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
       }));
     }
   };
