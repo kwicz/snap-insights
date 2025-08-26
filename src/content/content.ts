@@ -6,6 +6,12 @@ let selectedIcon: 'light' | 'blue' | 'dark' = 'blue';
 // Annotation dialog state
 let currentAnnotationDialog: HTMLElement | null = null;
 
+// Transcription state variables
+let currentTranscriptionDialog: HTMLElement | null = null;
+let currentMediaRecorder: MediaRecorder | null = null;
+let currentRecognition: any = null;
+let transcriptionText: string = '';
+
 // Check if extension context is valid
 function isExtensionContextValid(): boolean {
   try {
@@ -48,7 +54,7 @@ function handleClick(event: MouseEvent): void {
 
     case 'transcribe':
       showClickFeedback(coordinates);
-      // TODO: Add simple transcription handling
+      startTranscription(coordinates);
       break;
   }
 
@@ -557,6 +563,404 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// Start transcription process
+async function startTranscription(coordinates: { x: number; y: number }): Promise<void> {
+  try {
+    // Request microphone permission
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 16000
+      } 
+    });
+    
+    showTranscriptionDialog(coordinates, stream);
+    
+  } catch (error: any) {
+    if (error.name === 'NotAllowedError') {
+      showErrorNotification('Microphone access denied. Please allow microphone access and try again.');
+    } else if (error.name === 'NotFoundError') {
+      showErrorNotification('No microphone found. Please check your audio device.');
+    } else {
+      showErrorNotification('Failed to access microphone: ' + error.message);
+    }
+  }
+}
+
+// Show transcription dialog with recording interface
+function showTranscriptionDialog(captureCoordinates: { x: number; y: number }, stream: MediaStream): void {
+  // Calculate display coordinates
+  const displayCoordinates = {
+    x: Math.min(captureCoordinates.x + 20, window.innerWidth - 350),
+    y: Math.max(captureCoordinates.y - 10, 10)
+  };
+
+  // Remove any existing dialog
+  if (currentTranscriptionDialog) {
+    stopTranscription();
+  }
+
+  // Reset transcription text
+  transcriptionText = '';
+
+  // Create dialog container
+  const dialog = document.createElement('div');
+  dialog.className = 'insight-clip-transcription-dialog';
+  dialog.style.cssText = `
+    position: fixed;
+    left: ${displayCoordinates.x}px;
+    top: ${displayCoordinates.y}px;
+    width: 350px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    padding: 0;
+    overflow: hidden;
+  `;
+
+  // Create header
+  const header = document.createElement('div');
+  header.style.cssText = `
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px 12px 20px;
+    border-bottom: 1px solid #f3f4f6;
+    background: #fafafa;
+  `;
+
+  const title = document.createElement('h3');
+  title.textContent = 'Voice Transcription';
+  title.style.cssText = `
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+  `;
+
+  // Recording indicator
+  const recordingIndicator = document.createElement('div');
+  recordingIndicator.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  `;
+
+  const recordingDot = document.createElement('div');
+  recordingDot.style.cssText = `
+    width: 12px;
+    height: 12px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+  `;
+
+  const recordingText = document.createElement('span');
+  recordingText.textContent = 'Recording...';
+  recordingText.style.cssText = `
+    font-size: 12px;
+    color: #ef4444;
+    font-weight: 500;
+  `;
+
+  recordingIndicator.appendChild(recordingDot);
+  recordingIndicator.appendChild(recordingText);
+
+  const closeButton = document.createElement('button');
+  closeButton.innerHTML = '&times;';
+  closeButton.style.cssText = `
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  `;
+
+  header.appendChild(title);
+  header.appendChild(recordingIndicator);
+  header.appendChild(closeButton);
+
+  // Create content area
+  const content = document.createElement('div');
+  content.style.cssText = `padding: 20px;`;
+
+  // Real-time transcription display
+  const transcriptionDisplay = document.createElement('div');
+  transcriptionDisplay.style.cssText = `
+    min-height: 100px;
+    max-height: 200px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 12px;
+    background: #f9fafb;
+    font-size: 14px;
+    color: #1f2937;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  `;
+  transcriptionDisplay.textContent = 'Start speaking...';
+
+  // Control buttons
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    display: flex;
+    gap: 12px;
+  `;
+
+  const stopButton = document.createElement('button');
+  stopButton.textContent = 'Stop & Save';
+  stopButton.style.cssText = `
+    flex: 1;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  `;
+
+  const cancelButton = document.createElement('button');
+  cancelButton.textContent = 'Cancel';
+  cancelButton.style.cssText = `
+    flex: 1;
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  `;
+
+  buttonContainer.appendChild(stopButton);
+  buttonContainer.appendChild(cancelButton);
+
+  // Assemble dialog
+  content.appendChild(transcriptionDisplay);
+  content.appendChild(buttonContainer);
+  dialog.appendChild(header);
+  dialog.appendChild(content);
+
+  // Event handlers
+  const cleanup = () => {
+    stopTranscription();
+    if (currentTranscriptionDialog) {
+      currentTranscriptionDialog.remove();
+      currentTranscriptionDialog = null;
+    }
+  };
+
+  closeButton.onclick = cleanup;
+  cancelButton.onclick = cleanup;
+
+  stopButton.onclick = async () => {
+    if (transcriptionText.trim()) {
+      cleanup();
+      await captureTranscribedScreenshot(captureCoordinates, transcriptionText.trim());
+    } else {
+      showErrorNotification('No transcription text to save');
+    }
+  };
+
+  // Add to page
+  document.body.appendChild(dialog);
+  currentTranscriptionDialog = dialog;
+
+  // Start transcription services
+  startWebSpeechRecognition(transcriptionDisplay, stream);
+  startMediaRecorder(stream); // Backup audio recording
+}
+
+// Web Speech API implementation
+function startWebSpeechRecognition(display: HTMLElement, stream: MediaStream): void {
+  if (!('webkitSpeechRecognition' in window)) {
+    showErrorNotification('Speech recognition not supported in this browser');
+    return;
+  }
+
+  const recognition = new (window as any).webkitSpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  recognition.maxAlternatives = 1;
+
+  let finalTranscript = '';
+  let startTime = Date.now();
+
+  recognition.onstart = () => {
+    display.textContent = 'Listening...';
+  };
+
+  recognition.onresult = (event: any) => {
+    let interimTranscript = '';
+    
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript + ' ';
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+
+    transcriptionText = finalTranscript + interimTranscript;
+    display.textContent = transcriptionText || 'Listening...';
+    
+    // Auto-scroll to bottom
+    display.scrollTop = display.scrollHeight;
+  };
+
+  recognition.onerror = (event: any) => {
+    console.error('Speech recognition error:', event.error);
+    if (event.error === 'no-speech') {
+      display.textContent = finalTranscript + '\n[No speech detected - continue speaking]';
+    }
+  };
+
+  recognition.onend = () => {
+    // Auto-restart if dialog is still open (unless manually stopped)
+    if (currentTranscriptionDialog && Date.now() - startTime < 300000) { // 5 minute max
+      setTimeout(() => recognition.start(), 100);
+    }
+  };
+
+  currentRecognition = recognition;
+  recognition.start();
+}
+
+// MediaRecorder for audio backup
+function startMediaRecorder(stream: MediaStream): void {
+  if (!MediaRecorder.isTypeSupported('audio/webm')) {
+    console.warn('MediaRecorder not supported');
+    return;
+  }
+
+  const recorder = new MediaRecorder(stream, {
+    mimeType: 'audio/webm',
+    audioBitsPerSecond: 128000
+  });
+
+  const audioChunks: Blob[] = [];
+
+  recorder.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      audioChunks.push(event.data);
+    }
+  };
+
+  recorder.onstop = () => {
+    // Audio blob available if needed for future enhancements
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    console.log('Audio recorded:', audioBlob.size, 'bytes');
+  };
+
+  currentMediaRecorder = recorder;
+  recorder.start(1000); // Collect data every second
+}
+
+// Stop all transcription services
+function stopTranscription(): void {
+  if (currentRecognition) {
+    currentRecognition.stop();
+    currentRecognition = null;
+  }
+
+  if (currentMediaRecorder && currentMediaRecorder.state === 'recording') {
+    currentMediaRecorder.stop();
+    currentMediaRecorder = null;
+  }
+
+  // Stop all media tracks
+  if (currentTranscriptionDialog) {
+    const streams = document.querySelectorAll('audio, video');
+    streams.forEach((element: any) => {
+      if (element.srcObject) {
+        element.srcObject.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      }
+    });
+  }
+}
+
+// Capture screenshot with transcription
+async function captureTranscribedScreenshot(
+  coordinates: { x: number; y: number },
+  transcriptionText: string
+): Promise<void> {
+  try {
+    if (!isExtensionContextValid()) {
+      showErrorNotification('Extension needs to be reloaded. Please refresh the page.');
+      return;
+    }
+
+    const response = await chrome.runtime.sendMessage({
+      type: 'CAPTURE_SCREENSHOT',
+      data: {
+        coordinates,
+        selectedIcon,
+        transcription: transcriptionText
+      },
+    });
+
+    if (response.success && response.dataUrl) {
+      if (!isExtensionContextValid()) {
+        showErrorNotification('Extension context lost during save. Please refresh the page.');
+        return;
+      }
+
+      const saveResponse = await chrome.runtime.sendMessage({
+        type: 'SAVE_SCREENSHOT',
+        data: {
+          dataUrl: response.dataUrl,
+          url: window.location.href,
+          timestamp: Date.now(),
+          coordinates,
+          mode: currentMode,
+          transcription: transcriptionText,
+        },
+      });
+
+      if (saveResponse.downloadId) {
+        showSuccessNotification('Transcribed screenshot saved successfully!');
+      }
+    } else {
+      showErrorNotification('Failed to capture screenshot');
+    }
+  } catch (error) {
+    if (error instanceof Error && (
+      error.message.includes('Extension context invalidated') ||
+      error.message.includes('Could not establish connection') ||
+      error.message.includes('The message port closed before a response was received')
+    )) {
+      showErrorNotification('Extension context lost. Please refresh the page and try again.');
+      extensionActive = false;
+    } else {
+      showErrorNotification('Screenshot capture error');
+    }
+  }
+}
+
 // Add CSS animations
 const style = document.createElement('style');
 style.textContent = `
@@ -564,6 +968,11 @@ style.textContent = `
     0% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.2); opacity: 0.8; }
     100% { transform: scale(1); opacity: 0; }
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
   }
   
   @keyframes slideIn {

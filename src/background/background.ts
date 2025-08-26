@@ -93,17 +93,76 @@ function wrapText(text: string, maxWidth: number): string[] {
   return lines;
 }
 
+// Draw transcription text next to marker
+function drawTranscriptionText(
+  ctx: OffscreenCanvasRenderingContext2D,
+  coordinates: { x: number; y: number },
+  transcription: string,
+  markerSize: number
+): void {
+  ctx.font =
+    '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  // Position below the marker for transcriptions
+  const textX = coordinates.x - 100;
+  const textY = coordinates.y + markerSize / 2 + 15;
+
+  const lines = wrapText(transcription, 250);
+  const lineHeight = 18;
+  const padding = 12;
+  const textWidth = Math.max(
+    ...lines.map((line) => ctx.measureText(line).width)
+  );
+  const textHeight = lines.length * lineHeight;
+
+  // Draw background with blue styling for transcriptions
+  ctx.fillStyle = 'rgba(59, 130, 246, 0.95)';
+  ctx.fillRect(
+    textX - padding,
+    textY - padding,
+    textWidth + padding * 2,
+    textHeight + padding * 2
+  );
+
+  // Draw border
+  ctx.strokeStyle = '#2563eb';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(
+    textX - padding,
+    textY - padding,
+    textWidth + padding * 2,
+    textHeight + padding * 2
+  );
+
+  // Add label
+  ctx.fillStyle = '#ffffff';
+  ctx.font =
+    '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('TRANSCRIPTION', textX, textY - padding - 18);
+
+  // Draw transcription text
+  ctx.font =
+    '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  lines.forEach((line, index) => {
+    ctx.fillText(line, textX, textY + index * lineHeight);
+  });
+}
+
 // Draw marker on screenshot
 async function drawMarkerOnScreenshot(
   dataUrl: string,
   coordinates: { x: number; y: number },
   selectedIcon: 'light' | 'blue' | 'dark' = 'blue',
-  annotation?: string
+  annotation?: string,
+  transcription?: string
 ): Promise<string> {
   try {
     console.log('=== COORDINATE DEBUG ===');
     console.log('Received coordinates:', coordinates);
-    
+
     // Convert data URL to ImageBitmap (works in service worker)
     const response = await fetch(dataUrl);
     const blob = await response.blob();
@@ -129,23 +188,19 @@ async function drawMarkerOnScreenshot(
 
       // Draw the touchpoint icon at the click location (64px size)
       const iconSize = 64;
-      
+
       // Match content script's showClickFeedback positioning exactly
       const drawX = coordinates.x - 32; // Same as content script: coordinates.x - 32
       const drawY = coordinates.y - 32; // Same as content script: coordinates.y - 32
-      
-      console.log('Icon drawing position:', { drawX, drawY, iconSize });
-      
-      ctx.drawImage(
-        iconBitmap,
-        drawX,
-        drawY,
-        iconSize,
-        iconSize
-      );
 
-      // Draw annotation text if provided
-      if (annotation) {
+      console.log('Icon drawing position:', { drawX, drawY, iconSize });
+
+      ctx.drawImage(iconBitmap, drawX, drawY, iconSize, iconSize);
+
+      // Draw annotation or transcription text if provided
+      if (transcription) {
+        drawTranscriptionText(ctx, coordinates, transcription, iconSize);
+      } else if (annotation) {
         drawAnnotationText(ctx, coordinates, annotation, iconSize);
       }
     } catch (iconError) {
@@ -205,6 +260,7 @@ interface CaptureResult {
 interface CaptureData {
   coordinates: { x: number; y: number };
   annotation?: string;
+  transcription?: string;
   selectedIcon?: 'light' | 'blue' | 'dark';
 }
 
@@ -246,7 +302,8 @@ export async function handleScreenshotCapture(
         dataUrl,
         captureData.coordinates,
         captureData.selectedIcon || 'blue',
-        captureData.annotation
+        captureData.annotation,
+        captureData.transcription
       );
       return { success: true, dataUrl: markedDataUrl };
     }
