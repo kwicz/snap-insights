@@ -17,13 +17,93 @@ const DEFAULT_MARKER_SETTINGS: MarkerColorSettings = {
   style: 'solid',
 };
 
+// Draw annotation text next to marker
+function drawAnnotationText(
+  ctx: OffscreenCanvasRenderingContext2D,
+  coordinates: { x: number; y: number },
+  annotation: string,
+  markerSize: number
+): void {
+  // Set text properties
+  ctx.font =
+    '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  // Calculate text position (to the right of the marker)
+  const textX = coordinates.x + markerSize / 2 + 10;
+  const textY = coordinates.y - markerSize / 2;
+
+  // Measure text to create background
+  const lines = wrapText(annotation, 200); // Max width 200px
+  const lineHeight = 18;
+  const padding = 8;
+  const textWidth = Math.max(
+    ...lines.map((line) => ctx.measureText(line).width)
+  );
+  const textHeight = lines.length * lineHeight;
+
+  // Draw background rectangle
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.fillRect(
+    textX - padding,
+    textY - padding,
+    textWidth + padding * 2,
+    textHeight + padding * 2
+  );
+
+  // Draw border
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(
+    textX - padding,
+    textY - padding,
+    textWidth + padding * 2,
+    textHeight + padding * 2
+  );
+
+  // Draw text
+  ctx.fillStyle = '#1f2937';
+  lines.forEach((line, index) => {
+    ctx.fillText(line, textX, textY + index * lineHeight);
+  });
+}
+
+// Wrap text to fit within max width
+function wrapText(text: string, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine + (currentLine ? ' ' : '') + word;
+    if (testLine.length * 8 > maxWidth && currentLine) {
+      // Rough character width estimation
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
 // Draw marker on screenshot
 async function drawMarkerOnScreenshot(
   dataUrl: string,
   coordinates: { x: number; y: number },
-  selectedIcon: 'light' | 'blue' | 'dark' = 'blue'
+  selectedIcon: 'light' | 'blue' | 'dark' = 'blue',
+  annotation?: string
 ): Promise<string> {
   try {
+    console.log('=== COORDINATE DEBUG ===');
+    console.log('Received coordinates:', coordinates);
+    
     // Convert data URL to ImageBitmap (works in service worker)
     const response = await fetch(dataUrl);
     const blob = await response.blob();
@@ -33,33 +113,54 @@ async function drawMarkerOnScreenshot(
     const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
     const ctx = canvas.getContext('2d')!;
 
+    console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+
     // Draw the screenshot
     ctx.drawImage(imageBitmap, 0, 0);
 
     // Load the touchpoint icon
     try {
-      const iconUrl = chrome.runtime.getURL(`assets/icons/touchpoint-${selectedIcon}.png`);
+      const iconUrl = chrome.runtime.getURL(
+        `assets/icons/touchpoint-${selectedIcon}.png`
+      );
       const iconResponse = await fetch(iconUrl);
       const iconBlob = await iconResponse.blob();
       const iconBitmap = await createImageBitmap(iconBlob);
 
       // Draw the touchpoint icon at the click location (64px size)
       const iconSize = 64;
+      
+      // Match content script's showClickFeedback positioning exactly
+      const drawX = coordinates.x - 32; // Same as content script: coordinates.x - 32
+      const drawY = coordinates.y - 32; // Same as content script: coordinates.y - 32
+      
+      console.log('Icon drawing position:', { drawX, drawY, iconSize });
+      
       ctx.drawImage(
         iconBitmap,
-        coordinates.x - iconSize / 2,
-        coordinates.y - iconSize / 2,
+        drawX,
+        drawY,
         iconSize,
         iconSize
       );
+
+      // Draw annotation text if provided
+      if (annotation) {
+        drawAnnotationText(ctx, coordinates, annotation, iconSize);
+      }
     } catch (iconError) {
       // Failed to load touchpoint icon, using fallback circle
-      
+
       // Fallback: draw a colored circle if icon loading fails
       const size = 32;
       ctx.beginPath();
       ctx.arc(coordinates.x, coordinates.y, size / 2, 0, 2 * Math.PI);
-      ctx.fillStyle = selectedIcon === 'blue' ? '#3b82f6' : selectedIcon === 'dark' ? '#1f2937' : '#f3f4f6';
+      ctx.fillStyle =
+        selectedIcon === 'blue'
+          ? '#3b82f6'
+          : selectedIcon === 'dark'
+          ? '#1f2937'
+          : '#f3f4f6';
       ctx.globalAlpha = 0.8;
       ctx.fill();
 
@@ -75,6 +176,11 @@ async function drawMarkerOnScreenshot(
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1;
       ctx.stroke();
+
+      // Draw annotation text if provided
+      if (annotation) {
+        drawAnnotationText(ctx, coordinates, annotation, size);
+      }
     }
 
     // Convert to data URL
@@ -113,13 +219,13 @@ export async function handleScreenshotCapture(
     // Rate limiting check
     const now = Date.now();
     if (now - lastCaptureTime < MIN_CAPTURE_INTERVAL) {
-      return { 
-        success: false, 
-        error: 'Please wait a moment before taking another screenshot' 
+      return {
+        success: false,
+        error: 'Please wait a moment before taking another screenshot',
       };
     }
     lastCaptureTime = now;
-    
+
     // Get active tab if not provided
     const tab = tabId
       ? await chrome.tabs.get(tabId)
@@ -137,9 +243,10 @@ export async function handleScreenshotCapture(
     // Add marker to screenshot if coordinates are provided
     if (captureData.coordinates && dataUrl) {
       const markedDataUrl = await drawMarkerOnScreenshot(
-        dataUrl, 
-        captureData.coordinates, 
-        captureData.selectedIcon || 'blue'
+        dataUrl,
+        captureData.coordinates,
+        captureData.selectedIcon || 'blue',
+        captureData.annotation
       );
       return { success: true, dataUrl: markedDataUrl };
     }
@@ -323,8 +430,7 @@ export async function handleModeToggle(): Promise<{ mode: ExtensionMode }> {
     const currentMode = settings?.mode || 'screenshot';
 
     // Toggle mode
-    const newMode: ExtensionMode =
-      currentMode === 'snap' ? 'annotate' : 'snap';
+    const newMode: ExtensionMode = currentMode === 'snap' ? 'annotate' : 'snap';
 
     // Update settings
     await handleSettingsUpdate({ mode: newMode });
@@ -363,13 +469,20 @@ export async function handleActivateExtension(data: {
       active: true,
       currentWindow: true,
     });
-    
+
     if (tab?.id) {
       // Check if tab URL is valid for injection
-      if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://') || tab.url?.startsWith('edge://') || tab.url?.startsWith('about:')) {
-        throw new Error(`Cannot use Snap Mode on system pages like ${tab.url}. Please navigate to a regular website (like google.com) and try again.`);
+      if (
+        tab.url?.startsWith('chrome://') ||
+        tab.url?.startsWith('chrome-extension://') ||
+        tab.url?.startsWith('edge://') ||
+        tab.url?.startsWith('about:')
+      ) {
+        throw new Error(
+          `Cannot use Snap Mode on system pages like ${tab.url}. Please navigate to a regular website (like google.com) and try again.`
+        );
       }
-      
+
       try {
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
@@ -380,7 +493,7 @@ export async function handleActivateExtension(data: {
       }
 
       // Wait a bit for script to load
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Test if content script is responsive first
       try {
@@ -544,7 +657,10 @@ chrome.runtime.onMessage.addListener(
     // Handle different message types
     switch (message.type) {
       case 'TEST_MESSAGE' as any:
-        sendResponse({ success: true, message: 'Background script is working!' });
+        sendResponse({
+          success: true,
+          message: 'Background script is working!',
+        });
         return true;
       case 'CAPTURE_SCREENSHOT':
         // Wrap in try-catch to handle context invalidation
@@ -560,11 +676,14 @@ chrome.runtime.onMessage.addListener(
             .catch((error) => {
               console.error('Screenshot capture error:', error);
               // Check if this is a context invalidation error
-              if (error.message?.includes('Extension context invalidated') || 
-                  error.message?.includes('Could not establish connection')) {
-                sendResponse({ 
-                  success: false, 
-                  error: 'Extension context invalidated. Please refresh the page and try again.' 
+              if (
+                error.message?.includes('Extension context invalidated') ||
+                error.message?.includes('Could not establish connection')
+              ) {
+                sendResponse({
+                  success: false,
+                  error:
+                    'Extension context invalidated. Please refresh the page and try again.',
                 });
               } else {
                 sendResponse({ success: false, error: error.message });
@@ -585,9 +704,12 @@ chrome.runtime.onMessage.addListener(
             .then(sendResponse)
             .catch((error) => {
               console.error('Save screenshot error:', error);
-              sendResponse({ 
-                success: false, 
-                error: error instanceof Error ? error.message : 'Failed to save screenshot' 
+              sendResponse({
+                success: false,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : 'Failed to save screenshot',
               });
             });
         } catch (error) {
@@ -712,14 +834,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     };
 
     await chrome.storage.sync.set({ settings: defaultSettings });
-    
+
     // Set initial extension state to OFF
     await chrome.storage.local.set({
       extensionActive: false,
       currentMode: 'snap',
       selectedIcon: 'blue',
     });
-    
+
     // Clear any badge text (extension starts OFF)
     await chrome.action.setBadgeText({ text: '' });
     await chrome.action.setTitle({ title: 'Insight Clip' });

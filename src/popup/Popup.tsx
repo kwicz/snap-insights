@@ -9,8 +9,9 @@ export interface PopupState {
   settings: ExtensionSettings;
   isLoading: boolean;
   error: string | null;
-  activeMode: 'inactive' | 'snap' | 'annotate' | 'transcribe';
+  activeMode: 'snap' | 'annotate' | 'transcribe';
   selectedIcon: 'light' | 'blue' | 'dark';
+  isExtensionActive: boolean;
   stats: {
     totalScreenshots: number;
     lastCaptured: number | null;
@@ -62,8 +63,9 @@ export const Popup: React.FC = () => {
     settings: DEFAULT_SETTINGS,
     isLoading: false,
     error: null,
-    activeMode: 'inactive', // Default to OFF state
+    activeMode: 'snap', // Default mode selection
     selectedIcon: 'blue', // Default to blue touchpoint
+    isExtensionActive: false, // Default to OFF state
     stats: {
       totalScreenshots: 0,
       lastCaptured: null,
@@ -123,8 +125,9 @@ export const Popup: React.FC = () => {
 
         setState((prev) => ({
           ...prev,
-          activeMode: isActive ? mode : 'inactive',
+          activeMode: mode, // Always show the selected mode
           selectedIcon: icon,
+          isExtensionActive: isActive, // Track the ON/OFF state separately
           isLoading: false,
         }));
       } catch (error) {
@@ -160,8 +163,15 @@ export const Popup: React.FC = () => {
       error: null,
     }));
 
+    // Save the selected mode to storage immediately
+    try {
+      await chrome.storage.local.set({ currentMode: mode });
+    } catch (error) {
+      console.error('Failed to save mode selection:', error);
+    }
+
     // If extension is currently active, update the mode immediately
-    if (state.activeMode !== 'inactive') {
+    if (state.isExtensionActive) {
       try {
         const response = await chrome.runtime.sendMessage({
           type: 'ACTIVATE_EXTENSION',
@@ -196,7 +206,7 @@ export const Popup: React.FC = () => {
       await chrome.storage.local.set({ selectedIcon: icon });
 
       // If extension is currently active, update the mode with new icon
-      if (state.activeMode !== 'inactive') {
+      if (state.isExtensionActive) {
         const response = await chrome.runtime.sendMessage({
           type: 'ACTIVATE_EXTENSION',
           data: {
@@ -219,9 +229,8 @@ export const Popup: React.FC = () => {
 
     try {
       if (enabled) {
-        // If turning on, use the selected mode or default to 'snap'
-        const mode =
-          state.activeMode !== 'inactive' ? state.activeMode : 'snap';
+        // If turning on, use the selected mode
+        const mode = state.activeMode;
 
         // Send message to background script to activate extension
         const response = await chrome.runtime.sendMessage({
@@ -235,7 +244,7 @@ export const Popup: React.FC = () => {
         if (response.success) {
           setState((prev) => ({
             ...prev,
-            activeMode: mode,
+            isExtensionActive: true,
             isLoading: false,
           }));
         } else {
@@ -250,7 +259,7 @@ export const Popup: React.FC = () => {
         if (response.success) {
           setState((prev) => ({
             ...prev,
-            activeMode: 'inactive',
+            isExtensionActive: false,
             isLoading: false,
           }));
         } else {
@@ -372,7 +381,7 @@ export const Popup: React.FC = () => {
           <label className='toggle-switch'>
             <input
               type='checkbox'
-              checked={state.activeMode !== 'inactive'}
+              checked={state.isExtensionActive}
               onChange={(e) => handleToggleExtension(e.target.checked)}
               disabled={state.isLoading}
             />
