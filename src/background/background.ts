@@ -44,7 +44,7 @@ function drawAnnotationText(
   const textHeight = lines.length * lineHeight;
 
   // Draw background rectangle
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.fillStyle = '#0277c0';
   ctx.fillRect(
     textX - padding,
     textY - padding,
@@ -53,7 +53,7 @@ function drawAnnotationText(
   );
 
   // Draw border
-  ctx.strokeStyle = '#e5e7eb';
+  ctx.strokeStyle = '#0277c0';
   ctx.lineWidth = 1;
   ctx.strokeRect(
     textX - padding,
@@ -63,7 +63,7 @@ function drawAnnotationText(
   );
 
   // Draw text
-  ctx.fillStyle = '#1f2937';
+  ctx.fillStyle = '#ffffff';
   lines.forEach((line, index) => {
     ctx.fillText(line, textX, textY + index * lineHeight);
   });
@@ -118,7 +118,7 @@ function drawTranscriptionText(
   const textHeight = lines.length * lineHeight;
 
   // Draw background with blue styling for transcriptions
-  ctx.fillStyle = 'rgba(59, 130, 246, 0.95)';
+  ctx.fillStyle = '#0277c0';
   ctx.fillRect(
     textX - padding,
     textY - padding,
@@ -127,7 +127,7 @@ function drawTranscriptionText(
   );
 
   // Draw border
-  ctx.strokeStyle = '#2563eb';
+  ctx.strokeStyle = '#0277c0';
   ctx.lineWidth = 2;
   ctx.strokeRect(
     textX - padding,

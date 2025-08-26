@@ -95,7 +95,7 @@ function showClickFeedback(coordinates: { x: number; y: number }): void {
       ctx.arc(32, 32, 24, 0, 2 * Math.PI);
 
       // Use proper colors for each icon type
-      let fillColor = '#3b82f6'; // default blue
+      let fillColor = '#0277C0'; // default blue
       if (selectedIcon === 'light') {
         fillColor = '#f8fafc'; // light gray/white
       } else if (selectedIcon === 'dark') {
@@ -132,16 +132,8 @@ function showAnnotationDialog(captureCoordinates: {
   // Calculate display coordinates (handle viewport boundaries)
   const displayCoordinates = {
     x: Math.min(captureCoordinates.x + 20, window.innerWidth - 320),
-    y: Math.max(captureCoordinates.y - 10, 10)
+    y: Math.max(captureCoordinates.y - 10, 10),
   };
-  
-  // DEBUG: Log coordinates at click capture
-  console.log('DEBUG CONTENT: Click coordinates captured:', {
-    clientX: captureCoordinates.x,
-    clientY: captureCoordinates.y,
-    displayX: displayCoordinates.x,
-    displayY: displayCoordinates.y
-  });
 
   // Remove any existing dialog
   if (currentAnnotationDialog) {
@@ -162,7 +154,7 @@ function showAnnotationDialog(captureCoordinates: {
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
     padding: 0;
     overflow: hidden;
@@ -176,7 +168,7 @@ function showAnnotationDialog(captureCoordinates: {
     align-items: center;
     padding: 16px 20px 12px 20px;
     border-bottom: 1px solid #f3f4f6;
-    background: #fafafa;
+    background: #dfedff;
   `;
 
   const title = document.createElement('h3');
@@ -226,7 +218,7 @@ function showAnnotationDialog(captureCoordinates: {
     width: 100%;
     height: 80px;
     border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 12px;
     font-family: inherit;
     font-size: 14px;
@@ -246,10 +238,10 @@ function showAnnotationDialog(captureCoordinates: {
   captureButton.textContent = 'Capture';
   captureButton.style.cssText = `
     width: 100%;
-    background: #007AFF;
+    background: #0277c0;
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 12px 16px;
     font-family: inherit;
     font-size: 14px;
@@ -259,9 +251,9 @@ function showAnnotationDialog(captureCoordinates: {
     transition: background-color 0.2s;
   `;
   captureButton.onmouseover = () =>
-    (captureButton.style.backgroundColor = '#0056CC');
+    (captureButton.style.backgroundColor = '#004e7e');
   captureButton.onmouseout = () =>
-    (captureButton.style.backgroundColor = '#007AFF');
+    (captureButton.style.backgroundColor = '#0277c0');
 
   // Assemble dialog
   content.appendChild(textarea);
@@ -302,13 +294,13 @@ function showAnnotationDialog(captureCoordinates: {
 
     // Remove event listeners first to prevent conflicts
     document.removeEventListener('click', handleOutsideClick, true);
-    
+
     // Completely remove dialog instead of hiding to prevent layout interference
     dialog.remove();
     currentAnnotationDialog = null;
-    
+
     // Wait for DOM to fully update using requestAnimationFrame
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setTimeout(resolve, 50);
@@ -424,7 +416,7 @@ async function captureAnnotatedScreenshot(
     console.log('DEBUG CONTENT: Sending coordinates to background:', {
       coordinates,
       selectedIcon,
-      annotation: annotationText
+      annotation: annotationText,
     });
 
     const response = await chrome.runtime.sendMessage({
@@ -564,24 +556,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Start transcription process
-async function startTranscription(coordinates: { x: number; y: number }): Promise<void> {
+async function startTranscription(coordinates: {
+  x: number;
+  y: number;
+}): Promise<void> {
   try {
     // Request microphone permission
-    const stream = await navigator.mediaDevices.getUserMedia({ 
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
-        sampleRate: 16000
-      } 
+        sampleRate: 16000,
+      },
     });
-    
+
     showTranscriptionDialog(coordinates, stream);
-    
   } catch (error: any) {
     if (error.name === 'NotAllowedError') {
-      showErrorNotification('Microphone access denied. Please allow microphone access and try again.');
+      showErrorNotification(
+        'Microphone access denied. Please allow microphone access and try again.'
+      );
     } else if (error.name === 'NotFoundError') {
-      showErrorNotification('No microphone found. Please check your audio device.');
+      showErrorNotification(
+        'No microphone found. Please check your audio device.'
+      );
     } else {
       showErrorNotification('Failed to access microphone: ' + error.message);
     }
@@ -589,11 +587,14 @@ async function startTranscription(coordinates: { x: number; y: number }): Promis
 }
 
 // Show transcription dialog with recording interface
-function showTranscriptionDialog(captureCoordinates: { x: number; y: number }, stream: MediaStream): void {
+function showTranscriptionDialog(
+  captureCoordinates: { x: number; y: number },
+  stream: MediaStream
+): void {
   // Calculate display coordinates
   const displayCoordinates = {
     x: Math.min(captureCoordinates.x + 20, window.innerWidth - 350),
-    y: Math.max(captureCoordinates.y - 10, 10)
+    y: Math.max(captureCoordinates.y - 10, 10),
   };
 
   // Remove any existing dialog
@@ -611,13 +612,13 @@ function showTranscriptionDialog(captureCoordinates: { x: number; y: number }, s
     position: fixed;
     left: ${displayCoordinates.x}px;
     top: ${displayCoordinates.y}px;
-    width: 350px;
+    width: 300px;
     background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
     padding: 0;
     overflow: hidden;
@@ -635,7 +636,7 @@ function showTranscriptionDialog(captureCoordinates: { x: number; y: number }, s
   `;
 
   const title = document.createElement('h3');
-  title.textContent = 'Voice Transcription';
+  title.textContent = 'Transcription';
   title.style.cssText = `
     margin: 0;
     font-size: 16px;
@@ -703,7 +704,7 @@ function showTranscriptionDialog(captureCoordinates: { x: number; y: number }, s
     min-height: 100px;
     max-height: 200px;
     border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 12px;
     background: #f9fafb;
     font-size: 14px;
@@ -726,10 +727,10 @@ function showTranscriptionDialog(captureCoordinates: { x: number; y: number }, s
   stopButton.textContent = 'Stop & Save';
   stopButton.style.cssText = `
     flex: 1;
-    background: #ef4444;
+    background: #0277c0;
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 12px 16px;
     font-family: inherit;
     font-size: 14px;
@@ -737,6 +738,8 @@ function showTranscriptionDialog(captureCoordinates: { x: number; y: number }, s
     cursor: pointer;
     transition: background-color 0.2s;
   `;
+  stopButton.onmouseover = () => (stopButton.style.backgroundColor = '#004e7e');
+  stopButton.onmouseout = () => (stopButton.style.backgroundColor = '#0277c0');
 
   const cancelButton = document.createElement('button');
   cancelButton.textContent = 'Cancel';
@@ -778,7 +781,10 @@ function showTranscriptionDialog(captureCoordinates: { x: number; y: number }, s
   stopButton.onclick = async () => {
     if (transcriptionText.trim()) {
       cleanup();
-      await captureTranscribedScreenshot(captureCoordinates, transcriptionText.trim());
+      await captureTranscribedScreenshot(
+        captureCoordinates,
+        transcriptionText.trim()
+      );
     } else {
       showErrorNotification('No transcription text to save');
     }
@@ -794,7 +800,10 @@ function showTranscriptionDialog(captureCoordinates: { x: number; y: number }, s
 }
 
 // Web Speech API implementation
-function startWebSpeechRecognition(display: HTMLElement, stream: MediaStream): void {
+function startWebSpeechRecognition(
+  display: HTMLElement,
+  stream: MediaStream
+): void {
   if (!('webkitSpeechRecognition' in window)) {
     showErrorNotification('Speech recognition not supported in this browser');
     return;
@@ -815,7 +824,7 @@ function startWebSpeechRecognition(display: HTMLElement, stream: MediaStream): v
 
   recognition.onresult = (event: any) => {
     let interimTranscript = '';
-    
+
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const transcript = event.results[i][0].transcript;
       if (event.results[i].isFinal) {
@@ -827,7 +836,7 @@ function startWebSpeechRecognition(display: HTMLElement, stream: MediaStream): v
 
     transcriptionText = finalTranscript + interimTranscript;
     display.textContent = transcriptionText || 'Listening...';
-    
+
     // Auto-scroll to bottom
     display.scrollTop = display.scrollHeight;
   };
@@ -835,13 +844,15 @@ function startWebSpeechRecognition(display: HTMLElement, stream: MediaStream): v
   recognition.onerror = (event: any) => {
     console.error('Speech recognition error:', event.error);
     if (event.error === 'no-speech') {
-      display.textContent = finalTranscript + '\n[No speech detected - continue speaking]';
+      display.textContent =
+        finalTranscript + '\n[No speech detected - continue speaking]';
     }
   };
 
   recognition.onend = () => {
     // Auto-restart if dialog is still open (unless manually stopped)
-    if (currentTranscriptionDialog && Date.now() - startTime < 300000) { // 5 minute max
+    if (currentTranscriptionDialog && Date.now() - startTime < 300000) {
+      // 5 minute max
       setTimeout(() => recognition.start(), 100);
     }
   };
@@ -859,7 +870,7 @@ function startMediaRecorder(stream: MediaStream): void {
 
   const recorder = new MediaRecorder(stream, {
     mimeType: 'audio/webm',
-    audioBitsPerSecond: 128000
+    audioBitsPerSecond: 128000,
   });
 
   const audioChunks: Blob[] = [];
@@ -897,7 +908,9 @@ function stopTranscription(): void {
     const streams = document.querySelectorAll('audio, video');
     streams.forEach((element: any) => {
       if (element.srcObject) {
-        element.srcObject.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+        element.srcObject
+          .getTracks()
+          .forEach((track: MediaStreamTrack) => track.stop());
       }
     });
   }
@@ -910,7 +923,9 @@ async function captureTranscribedScreenshot(
 ): Promise<void> {
   try {
     if (!isExtensionContextValid()) {
-      showErrorNotification('Extension needs to be reloaded. Please refresh the page.');
+      showErrorNotification(
+        'Extension needs to be reloaded. Please refresh the page.'
+      );
       return;
     }
 
@@ -919,13 +934,15 @@ async function captureTranscribedScreenshot(
       data: {
         coordinates,
         selectedIcon,
-        transcription: transcriptionText
+        transcription: transcriptionText,
       },
     });
 
     if (response.success && response.dataUrl) {
       if (!isExtensionContextValid()) {
-        showErrorNotification('Extension context lost during save. Please refresh the page.');
+        showErrorNotification(
+          'Extension context lost during save. Please refresh the page.'
+        );
         return;
       }
 
@@ -948,12 +965,17 @@ async function captureTranscribedScreenshot(
       showErrorNotification('Failed to capture screenshot');
     }
   } catch (error) {
-    if (error instanceof Error && (
-      error.message.includes('Extension context invalidated') ||
-      error.message.includes('Could not establish connection') ||
-      error.message.includes('The message port closed before a response was received')
-    )) {
-      showErrorNotification('Extension context lost. Please refresh the page and try again.');
+    if (
+      error instanceof Error &&
+      (error.message.includes('Extension context invalidated') ||
+        error.message.includes('Could not establish connection') ||
+        error.message.includes(
+          'The message port closed before a response was received'
+        ))
+    ) {
+      showErrorNotification(
+        'Extension context lost. Please refresh the page and try again.'
+      );
       extensionActive = false;
     } else {
       showErrorNotification('Screenshot capture error');

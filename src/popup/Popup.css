@@ -96,6 +96,7 @@ body {
 .mode-button:hover {
   background: #dfedff;
   border-color: #dfedff;
+  color: #0277c0;
 }
 
 .mode-button:disabled {
