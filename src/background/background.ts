@@ -9,6 +9,36 @@ import {
 } from '../types';
 import { ExtensionError } from '../types';
 
+// Font loading utility
+async function loadAndCheckFont(): Promise<void> {
+  // Create a temporary canvas to check font loading
+  const canvas = new OffscreenCanvas(100, 100);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // Load the font using FontFace API
+  try {
+    const font = new FontFace(
+      'League Spartan',
+      'url(https://fonts.gstatic.com/s/leaguespartan/v11/kJEqBuEW6A0lliaV_m88ja5Tws-Xv8Sic3WG.woff2) format("woff2")',
+      {
+        weight: '400',
+      }
+    );
+
+    // Wait for font to load
+    await font.load();
+    // Add to FontFaceSet
+    //@ts-ignore
+    if (self.fonts) {
+      //@ts-ignore
+      self.fonts.add(font);
+    }
+  } catch (err) {
+    console.warn('Failed to load League Spartan font:', err);
+  }
+}
+
 // Default marker settings
 const DEFAULT_MARKER_SETTINGS: MarkerColorSettings = {
   color: '#FF0000',
@@ -24,9 +54,9 @@ function drawAnnotationText(
   annotation: string,
   markerSize: number
 ): void {
-  // Set text properties
+  // Set text properties with specific font weight
   ctx.font =
-    '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
@@ -44,23 +74,23 @@ function drawAnnotationText(
   const textHeight = lines.length * lineHeight;
 
   // Draw background rectangle
-  ctx.fillStyle = '#0277c0';
-  ctx.fillRect(
-    textX - padding,
-    textY - padding,
-    textWidth + padding * 2,
-    textHeight + padding * 2
-  );
+  ctx.fillStyle = '#0277c0'; // Updated background color
 
-  // Draw border
-  ctx.strokeStyle = '#0277c0';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(
+  // Create rounded rectangle for background
+  ctx.beginPath();
+  ctx.roundRect(
     textX - padding,
     textY - padding,
     textWidth + padding * 2,
-    textHeight + padding * 2
+    textHeight + padding * 2,
+    12 // border radius
   );
+  ctx.fill();
+
+  // Draw border with rounded corners
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
   // Draw text
   ctx.fillStyle = '#ffffff';
@@ -100,8 +130,9 @@ function drawTranscriptionText(
   transcription: string,
   markerSize: number
 ): void {
+  // Set text properties with specific font weight
   ctx.font =
-    '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
@@ -118,33 +149,33 @@ function drawTranscriptionText(
   const textHeight = lines.length * lineHeight;
 
   // Draw background with blue styling for transcriptions
-  ctx.fillStyle = '#0277c0';
-  ctx.fillRect(
-    textX - padding,
-    textY - padding,
-    textWidth + padding * 2,
-    textHeight + padding * 2
-  );
+  ctx.fillStyle = '#0277c0'; // Updated background color
 
-  // Draw border
-  ctx.strokeStyle = '#0277c0';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(
+  // Create rounded rectangle for background
+  ctx.beginPath();
+  ctx.roundRect(
     textX - padding,
     textY - padding,
     textWidth + padding * 2,
-    textHeight + padding * 2
+    textHeight + padding * 2,
+    12 // border radius
   );
+  ctx.fill();
+
+  // Draw border with rounded corners
+  ctx.strokeStyle = '#2563eb';
+  ctx.lineWidth = 2;
+  ctx.stroke();
 
   // Add label
   ctx.fillStyle = '#ffffff';
   ctx.font =
-    '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    '400 12px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
   ctx.fillText('TRANSCRIPTION', textX, textY - padding - 18);
 
   // Draw transcription text
   ctx.font =
-    '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    '14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
   ctx.fillStyle = '#ffffff';
   lines.forEach((line, index) => {
     ctx.fillText(line, textX, textY + index * lineHeight);
@@ -511,6 +542,9 @@ export async function handleActivateExtension(data: {
   selectedIcon: 'light' | 'blue' | 'dark';
 }): Promise<{ success: boolean }> {
   try {
+    // Load font before activation
+    await loadAndCheckFont();
+
     // Store the current mode and selected icon
     await chrome.storage.local.set({
       extensionActive: true,

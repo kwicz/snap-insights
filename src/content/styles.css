@@ -1,5 +1,23 @@
 /* Insight Clip Content Script Styles */
 
+/* Add at the top of the file */
+@font-face {
+  font-family: 'League Spartan';
+  src: url('chrome-extension://__MSG_@@extension_id__/assets/fonts/LeagueSpartan-Regular.woff2')
+      format('woff2'),
+    url('chrome-extension://__MSG_@@extension_id__/assets/fonts/LeagueSpartan-Regular.woff')
+      format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Add after the first comment block */
+:root {
+  --insight-clip-font-family: 'League Spartan', -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
 /* Screenshot mode indicator */
 .insight-clip-screenshot-mode {
   /* Add subtle visual indicator when in screenshot mode */
@@ -81,7 +99,8 @@
 }
 
 @keyframes insight-clip-border-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: inset 0 0 0 2px rgba(0, 255, 0, 0.3);
   }
   50% {
@@ -94,7 +113,7 @@
   cursor: crosshair !important;
 }
 
-/* Ensure our elements don't interfere with page layout */
+/* Update the reset styles block to use our font */
 .insight-clip-marker,
 .insight-clip-flash,
 .insight-clip-notification {
@@ -104,7 +123,7 @@
   border: none !important;
   outline: none !important;
   background: none !important;
-  font: inherit !important;
+  font-family: var(--insight-clip-font-family) !important;
   vertical-align: baseline !important;
   text-decoration: none !important;
   list-style: none !important;
@@ -130,7 +149,7 @@
     animation: none !important;
     transition: none !important;
   }
-  
+
   .insight-clip-screenshot-mode::before {
     animation: none !important;
   }
@@ -142,7 +161,7 @@
     border-width: 3px !important;
     box-shadow: 0 0 0 1px black, 0 0 0 2px white !important;
   }
-  
+
   .insight-clip-notification {
     border: 2px solid white !important;
   }

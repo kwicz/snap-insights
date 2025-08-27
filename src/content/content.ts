@@ -12,6 +12,24 @@ let currentMediaRecorder: MediaRecorder | null = null;
 let currentRecognition: any = null;
 let transcriptionText: string = '';
 
+// Add this function to load the Google Font
+function loadLeagueSpartanFont(): void {
+  // Check if font is already loaded
+  if (document.querySelector('#insight-clip-font-loader')) {
+    return;
+  }
+
+  // Create and inject Google Fonts link
+  const fontLink = document.createElement('link');
+  fontLink.id = 'insight-clip-font-loader';
+  fontLink.href =
+    'https://fonts.googleapis.com/css2?family=League+Spartan:wght@300;400;500;600;700&display=swap';
+  fontLink.rel = 'stylesheet';
+  fontLink.type = 'text/css';
+
+  document.head.appendChild(fontLink);
+}
+
 // Check if extension context is valid
 function isExtensionContextValid(): boolean {
   try {
@@ -542,6 +560,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       extensionActive = true;
       currentMode = message.data.mode || 'snap';
       selectedIcon = message.data.selectedIcon || 'blue';
+
+      // Load the font when extension activates
+      loadLeagueSpartanFont();
+
       sendResponse({ success: true });
       break;
 
