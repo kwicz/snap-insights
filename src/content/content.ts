@@ -430,13 +430,6 @@ async function captureAnnotatedScreenshot(
       return;
     }
 
-    // DEBUG: Log coordinates being sent to background
-    console.log('DEBUG CONTENT: Sending coordinates to background:', {
-      coordinates,
-      selectedIcon,
-      annotation: annotationText,
-    });
-
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
       data: {

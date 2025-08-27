@@ -191,9 +191,6 @@ async function drawMarkerOnScreenshot(
   transcription?: string
 ): Promise<string> {
   try {
-    console.log('=== COORDINATE DEBUG ===');
-    console.log('Received coordinates:', coordinates);
-
     // Convert data URL to ImageBitmap (works in service worker)
     const response = await fetch(dataUrl);
     const blob = await response.blob();
@@ -202,8 +199,6 @@ async function drawMarkerOnScreenshot(
     // Create a canvas to draw on
     const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
     const ctx = canvas.getContext('2d')!;
-
-    console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
 
     // Draw the screenshot
     ctx.drawImage(imageBitmap, 0, 0);
@@ -223,8 +218,6 @@ async function drawMarkerOnScreenshot(
       // Match content script's showClickFeedback positioning exactly
       const drawX = coordinates.x - 32; // Same as content script: coordinates.x - 32
       const drawY = coordinates.y - 32; // Same as content script: coordinates.y - 32
-
-      console.log('Icon drawing position:', { drawX, drawY, iconSize });
 
       ctx.drawImage(iconBitmap, drawX, drawY, iconSize, iconSize);
 
