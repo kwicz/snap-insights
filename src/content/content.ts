@@ -355,10 +355,29 @@ function createInputDialog(config: {
         return;
       }
 
-      // For transcription: trigger the capture process
-      // Dialog removal will be handled by recognition.onend
+      // For transcription: Set flag and clear dialog reference FIRST
       isManualStop = true;
       currentTranscriptionDialog = null;
+
+      // Clear the display content to prevent race condition updates
+      if (config.textDisplay) {
+        config.textDisplay.textContent = '';
+      }
+
+      // Remove dialog immediately
+      dialog.remove();
+
+      // THEN stop transcription services
+      stopTranscription();
+
+      // Wait for cleanup
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(resolve, 50);
+          });
+        });
+      });
     }
 
     // For annotation case, remove dialog here

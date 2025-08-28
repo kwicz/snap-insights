@@ -4,6 +4,7 @@ import './Popup.css';
 
 // Components
 import { TabIcons } from '@/components/TabNav';
+import TheGoodLogo from '@/components/thegoodlogo';
 
 export interface PopupState {
   settings: ExtensionSettings;
@@ -299,9 +300,9 @@ export const Popup: React.FC = () => {
     <div className='popup'>
       <div className='popup-header'>
         <div className='app-icon'>
-          <img src='../assets/icons/icon.png' alt='InsightClip' />
+          <img src='../assets/icons/icon.png' alt='SnapInsights' />
         </div>
-        <h1 className='app-title'>InsightClip</h1>
+        <h1 className='app-title'>SnapInsights</h1>
       </div>
 
       <div className='mode-selection'>
@@ -395,7 +396,13 @@ export const Popup: React.FC = () => {
             <span className='toggle-slider'></span>
           </label>
         </div>
+        <small className='footer-text'>Alt + Click to Snap</small>
       </div>
+      {/* <div className='footer-container'>
+        <small className='footer-text'>
+          Powered by <TheGoodLogo />
+        </small>
+      </div> */}
     </div>
   );
 };
