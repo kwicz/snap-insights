@@ -48,56 +48,56 @@ const DEFAULT_MARKER_SETTINGS: MarkerColorSettings = {
 };
 
 // Draw annotation text next to marker
-function drawAnnotationText(
-  ctx: OffscreenCanvasRenderingContext2D,
-  coordinates: { x: number; y: number },
-  annotation: string,
-  markerSize: number
-): void {
-  // Set text properties with specific font weight
-  ctx.font =
-    '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
+// function drawAnnotationText(
+//   ctx: OffscreenCanvasRenderingContext2D,
+//   coordinates: { x: number; y: number },
+//   annotation: string,
+//   markerSize: number
+// ): void {
+//   // Set text properties with specific font weight
+//   ctx.font =
+//     '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+//   ctx.textAlign = 'left';
+//   ctx.textBaseline = 'top';
 
-  // Calculate text position (to the right of the marker)
-  const textX = coordinates.x + markerSize / 2 + 10;
-  const textY = coordinates.y - markerSize / 2;
+//   // Calculate text position (to the right of the marker)
+//   const textX = coordinates.x + markerSize / 2 + 10;
+//   const textY = coordinates.y - markerSize / 2;
 
-  // Measure text to create background
-  const lines = wrapText(annotation, 200); // Max width 200px
-  const lineHeight = 18;
-  const padding = 8;
-  const textWidth = Math.max(
-    ...lines.map((line) => ctx.measureText(line).width)
-  );
-  const textHeight = lines.length * lineHeight;
+//   // Measure text to create background
+//   const lines = wrapText(annotation, 200); // Max width 200px
+//   const lineHeight = 18;
+//   const padding = 8;
+//   const textWidth = Math.max(
+//     ...lines.map((line) => ctx.measureText(line).width)
+//   );
+//   const textHeight = lines.length * lineHeight;
 
-  // Draw background rectangle
-  ctx.fillStyle = '#0277c0'; // Updated background color
+//   // Draw background rectangle
+//   ctx.fillStyle = '#0277c0'; // Updated background color
 
-  // Create rounded rectangle for background
-  ctx.beginPath();
-  ctx.roundRect(
-    textX - padding,
-    textY - padding,
-    textWidth + padding * 2,
-    textHeight + padding * 2,
-    12 // border radius
-  );
-  ctx.fill();
+//   // Create rounded rectangle for background
+//   ctx.beginPath();
+//   ctx.roundRect(
+//     textX - padding,
+//     textY - padding,
+//     textWidth + padding * 2,
+//     textHeight + padding * 2,
+//     12 // border radius
+//   );
+//   ctx.fill();
 
-  // Draw border with rounded corners
-  ctx.strokeStyle = '#e5e7eb';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+//   // Draw border with rounded corners
+//   ctx.strokeStyle = '#e5e7eb';
+//   ctx.lineWidth = 1;
+//   ctx.stroke();
 
-  // Draw text
-  ctx.fillStyle = '#ffffff';
-  lines.forEach((line, index) => {
-    ctx.fillText(line, textX, textY + index * lineHeight);
-  });
-}
+//   // Draw text
+//   ctx.fillStyle = '#ffffff';
+//   lines.forEach((line, index) => {
+//     ctx.fillText(line, textX, textY + index * lineHeight);
+//   });
+// }
 
 // Wrap text to fit within max width
 function wrapText(text: string, maxWidth: number): string[] {
@@ -124,11 +124,70 @@ function wrapText(text: string, maxWidth: number): string[] {
 }
 
 // Draw transcription text next to marker
-function drawTranscriptionText(
+// function drawTranscriptionText(
+//   ctx: OffscreenCanvasRenderingContext2D,
+//   coordinates: { x: number; y: number },
+//   transcription: string,
+//   markerSize: number
+// ): void {
+//   // Set text properties with specific font weight
+//   ctx.font =
+//     '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+//   ctx.textAlign = 'left';
+//   ctx.textBaseline = 'top';
+
+//   // Position to the right of the marker (same as annotations)
+//   const textX = coordinates.x + markerSize / 2 + 10;
+//   const textY = coordinates.y - markerSize / 2;
+
+//   const lines = wrapText(transcription, 250);
+//   const lineHeight = 18;
+//   const padding = 12;
+//   const textWidth = Math.max(
+//     ...lines.map((line) => ctx.measureText(line).width)
+//   );
+//   const textHeight = lines.length * lineHeight;
+
+//   // Draw background with blue styling for transcriptions
+//   ctx.fillStyle = '#0277c0'; // Updated background color
+
+//   // Create rounded rectangle for background
+//   ctx.beginPath();
+//   ctx.roundRect(
+//     textX - padding,
+//     textY - padding,
+//     textWidth + padding * 2,
+//     textHeight + padding * 2,
+//     12 // border radius
+//   );
+//   ctx.fill();
+
+//   // Draw border with rounded corners
+//   ctx.strokeStyle = '#2563eb';
+//   ctx.lineWidth = 2;
+//   ctx.stroke();
+
+//   // Add label
+//   ctx.fillStyle = '#ffffff';
+//   ctx.font =
+//     '400 12px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+//   ctx.fillText('TRANSCRIPTION', textX, textY - padding - 18);
+
+//   // Draw transcription text
+//   ctx.font =
+//     '14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+//   ctx.fillStyle = '#ffffff';
+//   lines.forEach((line, index) => {
+//     ctx.fillText(line, textX, textY + index * lineHeight);
+//   });
+// }
+
+function drawTextBox(
   ctx: OffscreenCanvasRenderingContext2D,
   coordinates: { x: number; y: number },
-  transcription: string,
-  markerSize: number
+  text: string,
+  markerSize: number,
+  type: 'annotation' | 'transcription'
 ): void {
   // Set text properties with specific font weight
   ctx.font =
@@ -136,46 +195,65 @@ function drawTranscriptionText(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  // Position below the marker for transcriptions
-  const textX = coordinates.x - 100;
-  const textY = coordinates.y + markerSize / 2 + 15;
+  // Position to the right of the marker
+  const textX = coordinates.x + markerSize / 2 + 10;
+  const textY = coordinates.y - markerSize / 2;
 
-  const lines = wrapText(transcription, 250);
+  // Configure styling based on type
+  const config = {
+    annotation: {
+      maxWidth: 200,
+      padding: 8,
+      backgroundColor: '#0277c0',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      label: null,
+    },
+    transcription: {
+      maxWidth: 250,
+      padding: 12,
+      backgroundColor: '#0277c0',
+      borderColor: '#2563eb',
+      borderWidth: 2,
+      label: 'TRANSCRIPTION',
+    },
+  }[type];
+
+  const lines = wrapText(text, config.maxWidth);
   const lineHeight = 18;
-  const padding = 12;
   const textWidth = Math.max(
     ...lines.map((line) => ctx.measureText(line).width)
   );
   const textHeight = lines.length * lineHeight;
 
-  // Draw background with blue styling for transcriptions
-  ctx.fillStyle = '#0277c0'; // Updated background color
-
-  // Create rounded rectangle for background
+  // Draw background rectangle
+  ctx.fillStyle = config.backgroundColor;
   ctx.beginPath();
   ctx.roundRect(
-    textX - padding,
-    textY - padding,
-    textWidth + padding * 2,
-    textHeight + padding * 2,
-    12 // border radius
+    textX - config.padding,
+    textY - config.padding,
+    textWidth + config.padding * 2,
+    textHeight + config.padding * 2,
+    12
   );
   ctx.fill();
 
-  // Draw border with rounded corners
-  ctx.strokeStyle = '#2563eb';
-  ctx.lineWidth = 2;
+  // Draw border
+  ctx.strokeStyle = config.borderColor;
+  ctx.lineWidth = config.borderWidth;
   ctx.stroke();
 
-  // Add label
-  ctx.fillStyle = '#ffffff';
-  ctx.font =
-    '400 12px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-  ctx.fillText('TRANSCRIPTION', textX, textY - padding - 18);
+  // Add label if specified (for transcriptions)
+  if (config.label) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font =
+      '400 12px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    ctx.fillText(config.label, textX, textY - config.padding - 18);
+  }
 
-  // Draw transcription text
+  // Draw text
   ctx.font =
-    '14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
   ctx.fillStyle = '#ffffff';
   lines.forEach((line, index) => {
     ctx.fillText(line, textX, textY + index * lineHeight);
@@ -223,9 +301,9 @@ async function drawMarkerOnScreenshot(
 
       // Draw annotation or transcription text if provided
       if (transcription) {
-        drawTranscriptionText(ctx, coordinates, transcription, iconSize);
+        drawTextBox(ctx, coordinates, transcription, iconSize, 'transcription');
       } else if (annotation) {
-        drawAnnotationText(ctx, coordinates, annotation, iconSize);
+        drawTextBox(ctx, coordinates, annotation, iconSize, 'annotation');
       }
     } catch (iconError) {
       // Failed to load touchpoint icon, using fallback circle
@@ -258,7 +336,7 @@ async function drawMarkerOnScreenshot(
 
       // Draw annotation text if provided
       if (annotation) {
-        drawAnnotationText(ctx, coordinates, annotation, size);
+        drawTextBox(ctx, coordinates, annotation, size, 'annotation');
       }
     }
 

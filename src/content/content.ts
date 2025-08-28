@@ -10,7 +10,9 @@ let currentAnnotationDialog: HTMLElement | null = null;
 let currentTranscriptionDialog: HTMLElement | null = null;
 let currentMediaRecorder: MediaRecorder | null = null;
 let currentRecognition: any = null;
+let currentMediaStream: MediaStream | null = null;
 let transcriptionText: string = '';
+let isManualStop = false;
 
 // Add this function to load the Google Font
 function loadLeagueSpartanFont(): void {
@@ -142,26 +144,61 @@ function showClickFeedback(coordinates: { x: number; y: number }): void {
   }, 600);
 }
 
-// Show annotation dialog at click location
-function showAnnotationDialog(captureCoordinates: {
-  x: number;
-  y: number;
-}): void {
-  // Calculate display coordinates (handle viewport boundaries)
-  const displayCoordinates = {
-    x: Math.min(captureCoordinates.x + 20, window.innerWidth - 320),
-    y: Math.max(captureCoordinates.y - 10, 10),
-  };
+// Create recording indicator component
+function createRecordingIndicator(): HTMLElement {
+  const recordingIndicator = document.createElement('div');
+  recordingIndicator.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  `;
 
-  // Remove any existing dialog
-  if (currentAnnotationDialog) {
-    currentAnnotationDialog.remove();
-    currentAnnotationDialog = null;
-  }
+  const recordingDot = document.createElement('div');
+  recordingDot.style.cssText = `
+    width: 12px;
+    height: 12px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+  `;
+
+  const recordingText = document.createElement('span');
+  recordingText.textContent = 'Recording...';
+  recordingText.style.cssText = `
+    font-size: 12px;
+    color: #ef4444;
+    font-weight: 500;
+  `;
+
+  recordingIndicator.appendChild(recordingDot);
+  recordingIndicator.appendChild(recordingText);
+
+  return recordingIndicator;
+}
+
+// Generic dialog creation function
+function createInputDialog(config: {
+  coordinates: { x: number; y: number };
+  title: string;
+  placeholder: string;
+  buttonText: string;
+  headerBackground?: string;
+  onCapture: (
+    text: string,
+    coordinates: { x: number; y: number }
+  ) => Promise<void>;
+  onClose?: () => void;
+  showRecordingIndicator?: boolean;
+  textDisplay?: HTMLElement;
+}): HTMLElement {
+  const displayCoordinates = {
+    x: Math.min(config.coordinates.x + 20, window.innerWidth - 320),
+    y: Math.max(config.coordinates.y - 10, 10),
+  };
 
   // Create dialog container
   const dialog = document.createElement('div');
-  dialog.className = 'insight-clip-annotation-dialog';
+  dialog.className = 'insight-clip-input-dialog';
   dialog.style.cssText = `
     position: fixed;
     left: ${displayCoordinates.x}px;
@@ -178,7 +215,7 @@ function showAnnotationDialog(captureCoordinates: {
     overflow: hidden;
   `;
 
-  // Create header with close button
+  // Create header
   const header = document.createElement('div');
   header.style.cssText = `
     display: flex;
@@ -186,11 +223,12 @@ function showAnnotationDialog(captureCoordinates: {
     align-items: center;
     padding: 16px 20px 12px 20px;
     border-bottom: 1px solid #f3f4f6;
-    background: #dfedff;
+    background: ${config.headerBackground || '#dfedff'};
   `;
 
+  // Create header elements
   const title = document.createElement('h3');
-  title.textContent = 'Add Annotation';
+  title.textContent = config.title;
   title.style.cssText = `
     margin: 0;
     font-size: 16px;
@@ -215,45 +253,52 @@ function showAnnotationDialog(captureCoordinates: {
     border-radius: 4px;
     transition: background-color 0.2s;
   `;
-  closeButton.onmouseover = () =>
-    (closeButton.style.backgroundColor = '#f3f4f6');
-  closeButton.onmouseout = () =>
-    (closeButton.style.backgroundColor = 'transparent');
 
+  // Assemble header in correct order
   header.appendChild(title);
+  if (config.showRecordingIndicator) {
+    header.appendChild(createRecordingIndicator());
+  }
   header.appendChild(closeButton);
 
   // Create content area
   const content = document.createElement('div');
-  content.style.cssText = `
-    padding: 20px;
-  `;
+  content.style.cssText = `padding: 20px;`;
 
-  // Create textarea
-  const textarea = document.createElement('textarea');
-  textarea.placeholder = 'Enter your annotation...';
-  textarea.style.cssText = `
-    width: 100%;
-    height: 80px;
-    border: 1px solid #d1d5db;
-    border-radius: 12px;
-    padding: 12px;
-    font-family: inherit;
-    font-size: 14px;
-    color: #1f2937;
-    resize: vertical;
-    min-height: 60px;
-    max-height: 200px;
-    outline: none;
-    transition: border-color 0.2s;
-    box-sizing: border-box;
-  `;
-  textarea.onfocus = () => (textarea.style.borderColor = '#3b82f6');
-  textarea.onblur = () => (textarea.style.borderColor = '#d1d5db');
+  // Create input element (textarea or display div)
+  let inputElement: HTMLElement;
+  if (config.textDisplay) {
+    // Use provided display element for transcription
+    inputElement = config.textDisplay;
+  } else {
+    // Create textarea for annotation
+    const textarea = document.createElement('textarea');
+    textarea.placeholder = config.placeholder;
+    textarea.style.cssText = `
+      width: 100%;
+      height: 80px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      padding: 12px;
+      font-family: inherit;
+      font-size: 14px;
+      color: #1f2937;
+      resize: vertical;
+      min-height: 60px;
+      max-height: 200px;
+      outline: none;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+      margin-bottom: 16px;
+    `;
+    textarea.onfocus = () => (textarea.style.borderColor = '#3b82f6');
+    textarea.onblur = () => (textarea.style.borderColor = '#d1d5db');
+    inputElement = textarea;
+  }
 
   // Create capture button
   const captureButton = document.createElement('button');
-  captureButton.textContent = 'Capture';
+  captureButton.textContent = config.buttonText;
   captureButton.style.cssText = `
     width: 100%;
     background: #0277c0;
@@ -265,7 +310,6 @@ function showAnnotationDialog(captureCoordinates: {
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    margin-top: 16px;
     transition: background-color 0.2s;
   `;
   captureButton.onmouseover = () =>
@@ -274,73 +318,128 @@ function showAnnotationDialog(captureCoordinates: {
     (captureButton.style.backgroundColor = '#0277c0');
 
   // Assemble dialog
-  content.appendChild(textarea);
+  content.appendChild(inputElement);
   content.appendChild(captureButton);
   dialog.appendChild(header);
   dialog.appendChild(content);
 
-  // Add event listeners
-  const closeDialog = () => {
-    if (currentAnnotationDialog) {
-      currentAnnotationDialog.remove();
-      currentAnnotationDialog = null;
-    }
-    // Clean up event listeners
-    document.removeEventListener('click', handleOutsideClick, true);
-  };
-
-  closeButton.onclick = closeDialog;
-
-  // Close on outside click
-  const handleOutsideClick = (event: MouseEvent) => {
-    if (!dialog.contains(event.target as Node)) {
-      closeDialog();
+  // Event handlers
+  const cleanup = () => {
+    if (config.onClose) config.onClose();
+    if (dialog.parentNode) {
+      dialog.remove();
     }
   };
 
-  // Capture button handler
-  captureButton.onclick = async (event: MouseEvent) => {
-    event.stopPropagation(); // Prevent triggering outside click handler
+  closeButton.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    cleanup();
+  };
 
-    const annotationText = textarea.value.trim();
-    if (!annotationText) {
-      textarea.focus();
-      textarea.style.borderColor = '#ef4444';
-      setTimeout(() => (textarea.style.borderColor = '#d1d5db'), 2000);
-      return;
-    }
+  captureButton.onclick = async () => {
+    let text = '';
+    if (inputElement instanceof HTMLTextAreaElement) {
+      text = inputElement.value.trim();
+      if (!text) {
+        inputElement.focus();
+        inputElement.style.borderColor = '#ef4444';
+        setTimeout(() => (inputElement.style.borderColor = '#d1d5db'), 2000);
+        return;
+      }
+    } else {
+      // For transcription, get text from global variable
+      text = transcriptionText.trim();
+      if (!text) {
+        showErrorNotification('No transcription text to save');
+        return;
+      }
 
-    // Remove event listeners first to prevent conflicts
-    document.removeEventListener('click', handleOutsideClick, true);
+      // For transcription: Set flag and clear dialog reference FIRST
+      isManualStop = true;
+      currentTranscriptionDialog = null;
 
-    // Completely remove dialog instead of hiding to prevent layout interference
-    dialog.remove();
-    currentAnnotationDialog = null;
+      // Clear the display content to prevent race condition updates
+      if (config.textDisplay) {
+        config.textDisplay.textContent = '';
+      }
 
-    // Wait for DOM to fully update using requestAnimationFrame
-    await new Promise((resolve) => {
-      requestAnimationFrame(() => {
+      // Remove dialog immediately
+      dialog.remove();
+
+      // THEN stop transcription services
+      stopTranscription();
+
+      // Wait for cleanup
+      await new Promise((resolve) => {
         requestAnimationFrame(() => {
-          setTimeout(resolve, 50);
+          requestAnimationFrame(() => {
+            setTimeout(resolve, 50);
+          });
         });
       });
-    });
+    }
 
-    // Use the original click coordinates, not display coordinates
-    await captureAnnotatedScreenshot(captureCoordinates, annotationText);
+    // For annotation case, remove dialog here
+    if (inputElement instanceof HTMLTextAreaElement) {
+      dialog.remove();
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(resolve, 50);
+          });
+        });
+      });
+    }
 
-    // Clean up
-    closeDialog();
+    // Call the capture handler
+    await config.onCapture(text, config.coordinates);
   };
 
-  // Add to page
+  return dialog;
+}
+
+// Show annotation dialog at click location
+function showAnnotationDialog(captureCoordinates: {
+  x: number;
+  y: number;
+}): void {
+  // Remove any existing dialog
+  if (currentAnnotationDialog) {
+    currentAnnotationDialog.remove();
+    currentAnnotationDialog = null;
+  }
+
+  const dialog = createInputDialog({
+    coordinates: captureCoordinates,
+    title: 'Add Annotation',
+    placeholder: 'Enter your annotation...',
+    buttonText: 'Capture',
+    onCapture: async (text, coords) => {
+      await captureAnnotatedScreenshot(coords, text);
+    },
+    onClose: () => {
+      currentAnnotationDialog = null;
+      document.removeEventListener('click', handleOutsideClick, true);
+    },
+  });
+
+  // Add outside click handling (annotation-specific)
+  const handleOutsideClick = (event: MouseEvent) => {
+    if (!dialog.contains(event.target as Node)) {
+      dialog.remove();
+      currentAnnotationDialog = null;
+      document.removeEventListener('click', handleOutsideClick, true);
+    }
+  };
+
   document.body.appendChild(dialog);
   currentAnnotationDialog = dialog;
 
   // Focus textarea
-  setTimeout(() => textarea.focus(), 100);
+  const textarea = dialog.querySelector('textarea');
+  if (textarea) setTimeout(() => textarea.focus(), 100);
 
-  // Add outside click listener after a brief delay to avoid immediate closure
   setTimeout(() => {
     document.addEventListener('click', handleOutsideClick, true);
   }, 200);
@@ -575,17 +674,35 @@ async function startTranscription(coordinates: {
   x: number;
   y: number;
 }): Promise<void> {
+  showTranscriptionDialog(coordinates);
+}
+
+// Show transcription dialog with recording interface
+async function showTranscriptionDialog(captureCoordinates: {
+  x: number;
+  y: number;
+}): Promise<void> {
+  // Remove any existing dialog
+  if (currentTranscriptionDialog) {
+    stopTranscription();
+    currentTranscriptionDialog.remove();
+    currentTranscriptionDialog = null;
+  }
+
+  // Reset transcription text
+  transcriptionText = '';
+
+  // Request new stream
+  let stream: MediaStream;
   try {
-    // Request microphone permission
-    const stream = await navigator.mediaDevices.getUserMedia({
+    stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
         sampleRate: 16000,
       },
     });
-
-    showTranscriptionDialog(coordinates, stream);
+    currentMediaStream = stream;
   } catch (error: any) {
     if (error.name === 'NotAllowedError') {
       showErrorNotification(
@@ -598,122 +715,10 @@ async function startTranscription(coordinates: {
     } else {
       showErrorNotification('Failed to access microphone: ' + error.message);
     }
-  }
-}
-
-// Show transcription dialog with recording interface
-function showTranscriptionDialog(
-  captureCoordinates: { x: number; y: number },
-  stream: MediaStream
-): void {
-  // Calculate display coordinates
-  const displayCoordinates = {
-    x: Math.min(captureCoordinates.x + 20, window.innerWidth - 350),
-    y: Math.max(captureCoordinates.y - 10, 10),
-  };
-
-  // Remove any existing dialog
-  if (currentTranscriptionDialog) {
-    stopTranscription();
+    return;
   }
 
-  // Reset transcription text
-  transcriptionText = '';
-
-  // Create dialog container
-  const dialog = document.createElement('div');
-  dialog.className = 'insight-clip-transcription-dialog';
-  dialog.style.cssText = `
-    position: fixed;
-    left: ${displayCoordinates.x}px;
-    top: ${displayCoordinates.y}px;
-    width: 300px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    z-index: 999999;
-    font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 14px;
-    padding: 0;
-    overflow: hidden;
-  `;
-
-  // Create header
-  const header = document.createElement('div');
-  header.style.cssText = `
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px 12px 20px;
-    border-bottom: 1px solid #f3f4f6;
-    background: #fafafa;
-  `;
-
-  const title = document.createElement('h3');
-  title.textContent = 'Transcription';
-  title.style.cssText = `
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
-  `;
-
-  // Recording indicator
-  const recordingIndicator = document.createElement('div');
-  recordingIndicator.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  `;
-
-  const recordingDot = document.createElement('div');
-  recordingDot.style.cssText = `
-    width: 12px;
-    height: 12px;
-    background: #ef4444;
-    border-radius: 50%;
-    animation: pulse 1.5s ease-in-out infinite;
-  `;
-
-  const recordingText = document.createElement('span');
-  recordingText.textContent = 'Recording...';
-  recordingText.style.cssText = `
-    font-size: 12px;
-    color: #ef4444;
-    font-weight: 500;
-  `;
-
-  recordingIndicator.appendChild(recordingDot);
-  recordingIndicator.appendChild(recordingText);
-
-  const closeButton = document.createElement('button');
-  closeButton.innerHTML = '&times;';
-  closeButton.style.cssText = `
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: #6b7280;
-    cursor: pointer;
-    padding: 0;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-  `;
-
-  header.appendChild(title);
-  header.appendChild(recordingIndicator);
-  header.appendChild(closeButton);
-
-  // Create content area
-  const content = document.createElement('div');
-  content.style.cssText = `padding: 20px;`;
-
-  // Real-time transcription display
+  // Create transcription display
   const transcriptionDisplay = document.createElement('div');
   transcriptionDisplay.style.cssText = `
     min-height: 100px;
@@ -727,85 +732,27 @@ function showTranscriptionDialog(
     overflow-y: auto;
     white-space: pre-wrap;
     line-height: 1.5;
-    margin-bottom: 16px;
+    margin-bottom: 16px;  /* Added to match annotation textarea spacing */
   `;
   transcriptionDisplay.textContent = 'Start speaking...';
 
-  // Control buttons
-  const buttonContainer = document.createElement('div');
-  buttonContainer.style.cssText = `
-    display: flex;
-    gap: 12px;
-  `;
-
-  const stopButton = document.createElement('button');
-  stopButton.textContent = 'Stop & Save';
-  stopButton.style.cssText = `
-    flex: 1;
-    background: #0277c0;
-    color: white;
-    border: none;
-    border-radius: 12px;
-    padding: 12px 16px;
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  `;
-  stopButton.onmouseover = () => (stopButton.style.backgroundColor = '#004e7e');
-  stopButton.onmouseout = () => (stopButton.style.backgroundColor = '#0277c0');
-
-  const cancelButton = document.createElement('button');
-  cancelButton.textContent = 'Cancel';
-  cancelButton.style.cssText = `
-    flex: 1;
-    background: #6b7280;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 12px 16px;
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  `;
-
-  buttonContainer.appendChild(stopButton);
-  buttonContainer.appendChild(cancelButton);
-
-  // Assemble dialog
-  content.appendChild(transcriptionDisplay);
-  content.appendChild(buttonContainer);
-  dialog.appendChild(header);
-  dialog.appendChild(content);
-
-  // Event handlers
-  const cleanup = () => {
-    stopTranscription();
-    if (currentTranscriptionDialog) {
-      currentTranscriptionDialog.remove();
+  const dialog = createInputDialog({
+    coordinates: captureCoordinates,
+    title: 'Transcription',
+    placeholder: '',
+    buttonText: 'Capture',
+    showRecordingIndicator: true,
+    textDisplay: transcriptionDisplay,
+    onCapture: async (text, coords) => {
+      await captureTranscribedScreenshot(coords, text);
+    },
+    onClose: () => {
+      isManualStop = true;
+      stopTranscription();
       currentTranscriptionDialog = null;
-    }
-  };
+    },
+  });
 
-  closeButton.onclick = cleanup;
-  cancelButton.onclick = cleanup;
-
-  stopButton.onclick = async () => {
-    if (transcriptionText.trim()) {
-      cleanup();
-      await captureTranscribedScreenshot(
-        captureCoordinates,
-        transcriptionText.trim()
-      );
-    } else {
-      showErrorNotification('No transcription text to save');
-    }
-  };
-
-  // Add to page
   document.body.appendChild(dialog);
   currentTranscriptionDialog = dialog;
 
@@ -819,10 +766,18 @@ function startWebSpeechRecognition(
   display: HTMLElement,
   stream: MediaStream
 ): void {
-  if (!('webkitSpeechRecognition' in window)) {
-    showErrorNotification('Speech recognition not supported in this browser');
-    return;
+  // Stop any existing recognition before starting new one
+  if (currentRecognition) {
+    currentRecognition.stop();
+    currentRecognition = null;
   }
+
+  // if (!('webkitSpeechRecognition' in window)) {
+  //   showErrorNotification('Speech recognition not supported in this browser');
+  //   return;
+  // }
+
+  isManualStop = false; // Reset flag for new session
 
   const recognition = new (window as any).webkitSpeechRecognition();
   recognition.continuous = true;
@@ -858,6 +813,9 @@ function startWebSpeechRecognition(
 
   recognition.onerror = (event: any) => {
     console.error('Speech recognition error:', event.error);
+    if (event.error === 'aborted') {
+      return; // Don't auto-restart on abort
+    }
     if (event.error === 'no-speech') {
       display.textContent =
         finalTranscript + '\n[No speech detected - continue speaking]';
@@ -865,11 +823,16 @@ function startWebSpeechRecognition(
   };
 
   recognition.onend = () => {
-    // Auto-restart if dialog is still open (unless manually stopped)
-    if (currentTranscriptionDialog && Date.now() - startTime < 300000) {
-      // 5 minute max
-      setTimeout(() => recognition.start(), 100);
+    // Only show continue message if dialog still exists in DOM AND not manually stopped
+    if (
+      currentTranscriptionDialog &&
+      currentTranscriptionDialog.parentNode &&
+      !isManualStop
+    ) {
+      currentTranscriptionDialog.remove();
+      stopTranscription();
     }
+    // Don't show any message if manually stopped (user clicked Stop & Save or Cancel)
   };
 
   currentRecognition = recognition;
@@ -908,6 +871,8 @@ function startMediaRecorder(stream: MediaStream): void {
 
 // Stop all transcription services
 function stopTranscription(): void {
+  isManualStop = true; // Set flag to prevent auto-restart
+
   if (currentRecognition) {
     currentRecognition.stop();
     currentRecognition = null;
@@ -918,16 +883,12 @@ function stopTranscription(): void {
     currentMediaRecorder = null;
   }
 
-  // Stop all media tracks
-  if (currentTranscriptionDialog) {
-    const streams = document.querySelectorAll('audio, video');
-    streams.forEach((element: any) => {
-      if (element.srcObject) {
-        element.srcObject
-          .getTracks()
-          .forEach((track: MediaStreamTrack) => track.stop());
-      }
-    });
+  // Stop the actual media stream tracks
+  if (currentMediaStream) {
+    currentMediaStream
+      .getTracks()
+      .forEach((track: MediaStreamTrack) => track.stop());
+    currentMediaStream = null;
   }
 }
 
@@ -1001,12 +962,6 @@ async function captureTranscribedScreenshot(
 // Add CSS animations
 const style = document.createElement('style');
 style.textContent = `
-  @keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.2); opacity: 0.8; }
-    100% { transform: scale(1); opacity: 0; }
-  }
-  
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }

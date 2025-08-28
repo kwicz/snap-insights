@@ -82,7 +82,6 @@ export const Popup: React.FC = () => {
         const testResponse = await chrome.runtime.sendMessage({
           type: 'TEST_MESSAGE',
         });
-        console.log('Background connection test:', testResponse);
 
         if (!testResponse || !testResponse.success) {
           throw new Error('Background script not responding');
@@ -104,10 +103,15 @@ export const Popup: React.FC = () => {
         if (isActive) {
           try {
             // Test if content script is actually active on current tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            const [tab] = await chrome.tabs.query({
+              active: true,
+              currentWindow: true,
+            });
             if (tab?.id) {
-              const pingResponse = await chrome.tabs.sendMessage(tab.id, { type: 'PING' });
-              
+              const pingResponse = await chrome.tabs.sendMessage(tab.id, {
+                type: 'PING',
+              });
+
               // If content script doesn't respond, extension isn't actually active
               if (!pingResponse?.success) {
                 isActive = false;
@@ -216,7 +220,10 @@ export const Popup: React.FC = () => {
         });
 
         if (!response.success) {
-          console.error('Failed to update active extension with new icon:', response.error);
+          console.error(
+            'Failed to update active extension with new icon:',
+            response.error
+          );
         }
       }
     } catch (error) {
