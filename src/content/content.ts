@@ -355,29 +355,10 @@ function createInputDialog(config: {
         return;
       }
 
-      // For transcription: Set flag and clear dialog reference FIRST
+      // For transcription: trigger the capture process
+      // Dialog removal will be handled by recognition.onend
       isManualStop = true;
       currentTranscriptionDialog = null;
-
-      // Clear the display content to prevent race condition updates
-      if (config.textDisplay) {
-        config.textDisplay.textContent = '';
-      }
-
-      // Remove dialog immediately
-      dialog.remove();
-
-      // THEN stop transcription services
-      stopTranscription();
-
-      // Wait for cleanup
-      await new Promise((resolve) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setTimeout(resolve, 50);
-          });
-        });
-      });
     }
 
     // For annotation case, remove dialog here
@@ -823,7 +804,6 @@ function startWebSpeechRecognition(
   };
 
   recognition.onend = () => {
-    // Only show continue message if dialog still exists in DOM AND not manually stopped
     if (
       currentTranscriptionDialog &&
       currentTranscriptionDialog.parentNode &&
@@ -831,8 +811,8 @@ function startWebSpeechRecognition(
     ) {
       currentTranscriptionDialog.remove();
       stopTranscription();
+      currentTranscriptionDialog = null;
     }
-    // Don't show any message if manually stopped (user clicked Stop & Save or Cancel)
   };
 
   currentRecognition = recognition;
