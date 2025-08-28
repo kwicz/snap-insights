@@ -1,5 +1,5 @@
 /**
- * Centralized state management for Insight Clip extension
+ * Centralized state management for SnapInsights extension
  * Single source of truth using chrome.storage
  */
 
@@ -26,40 +26,50 @@ export async function getExtensionState(): Promise<ExtensionState> {
   try {
     // Check if chrome.storage is available
     if (typeof chrome === 'undefined' || !chrome?.storage?.local) {
-      console.warn('INSIGHT-CLIP: Chrome storage API not available, using default state');
+      console.warn(
+        'INSIGHT-CLIP: Chrome storage API not available, using default state'
+      );
       return DEFAULT_STATE;
     }
 
     const result = await chrome.storage.local.get(STATE_KEY);
     const state = result[STATE_KEY];
-    
+
     console.log('INSIGHT-CLIP: Raw state from storage:', state);
-    
+
     if (!state) {
       // No state exists, return default (don't try to save yet)
       console.log('INSIGHT-CLIP: No existing state, using default');
       return DEFAULT_STATE;
     }
-    
+
     // Validate state structure
     const validatedState = {
       ...DEFAULT_STATE,
       ...state,
       lastUpdated: state.lastUpdated || Date.now(),
     };
-    
+
     // Ensure mode is valid
-    if (!['snap', 'annotate', 'transcribe'].includes(validatedState.currentMode)) {
-      console.warn('INSIGHT-CLIP: Invalid mode detected, resetting to snap:', validatedState.currentMode);
+    if (
+      !['snap', 'annotate', 'transcribe'].includes(validatedState.currentMode)
+    ) {
+      console.warn(
+        'INSIGHT-CLIP: Invalid mode detected, resetting to snap:',
+        validatedState.currentMode
+      );
       validatedState.currentMode = 'snap';
     }
-    
+
     // Ensure icon is valid
     if (!['light', 'blue', 'dark'].includes(validatedState.selectedIcon)) {
-      console.warn('INSIGHT-CLIP: Invalid icon detected, resetting to blue:', validatedState.selectedIcon);
+      console.warn(
+        'INSIGHT-CLIP: Invalid icon detected, resetting to blue:',
+        validatedState.selectedIcon
+      );
       validatedState.selectedIcon = 'blue';
     }
-    
+
     console.log('INSIGHT-CLIP: Validated state:', validatedState);
     return validatedState;
   } catch (error) {
@@ -76,7 +86,9 @@ export async function getExtensionState(): Promise<ExtensionState> {
 /**
  * Save extension state to storage
  */
-export async function saveExtensionState(state: Partial<ExtensionState>): Promise<void> {
+export async function saveExtensionState(
+  state: Partial<ExtensionState>
+): Promise<void> {
   try {
     // Check if chrome.storage is available
     if (!chrome?.storage?.local) {
@@ -84,11 +96,17 @@ export async function saveExtensionState(state: Partial<ExtensionState>): Promis
     }
 
     // Validate input state
-    if (state.currentMode && !['snap', 'annotate', 'transcribe'].includes(state.currentMode)) {
+    if (
+      state.currentMode &&
+      !['snap', 'annotate', 'transcribe'].includes(state.currentMode)
+    ) {
       throw new Error(`Invalid mode: ${state.currentMode}`);
     }
-    
-    if (state.selectedIcon && !['light', 'blue', 'dark'].includes(state.selectedIcon)) {
+
+    if (
+      state.selectedIcon &&
+      !['light', 'blue', 'dark'].includes(state.selectedIcon)
+    ) {
       throw new Error(`Invalid icon: ${state.selectedIcon}`);
     }
 
@@ -98,7 +116,7 @@ export async function saveExtensionState(state: Partial<ExtensionState>): Promis
       ...state,
       lastUpdated: Date.now(),
     };
-    
+
     console.log('INSIGHT-CLIP: Saving state:', newState);
     await chrome.storage.local.set({ [STATE_KEY]: newState });
     console.log('INSIGHT-CLIP: State saved successfully');
@@ -116,7 +134,9 @@ export async function saveExtensionState(state: Partial<ExtensionState>): Promis
 /**
  * Update specific state properties
  */
-export async function updateExtensionState(updates: Partial<ExtensionState>): Promise<ExtensionState> {
+export async function updateExtensionState(
+  updates: Partial<ExtensionState>
+): Promise<ExtensionState> {
   await saveExtensionState(updates);
   return await getExtensionState();
 }
@@ -124,7 +144,10 @@ export async function updateExtensionState(updates: Partial<ExtensionState>): Pr
 /**
  * Activate extension with mode and icon
  */
-export async function activateExtension(mode: 'snap' | 'annotate' | 'transcribe', selectedIcon: 'light' | 'blue' | 'dark'): Promise<void> {
+export async function activateExtension(
+  mode: 'snap' | 'annotate' | 'transcribe',
+  selectedIcon: 'light' | 'blue' | 'dark'
+): Promise<void> {
   await saveExtensionState({
     isActive: true,
     currentMode: mode,
@@ -144,7 +167,9 @@ export async function deactivateExtension(): Promise<void> {
 /**
  * Set current mode (without changing active state)
  */
-export async function setCurrentMode(mode: 'snap' | 'annotate' | 'transcribe'): Promise<void> {
+export async function setCurrentMode(
+  mode: 'snap' | 'annotate' | 'transcribe'
+): Promise<void> {
   await saveExtensionState({
     currentMode: mode,
   });
@@ -153,7 +178,9 @@ export async function setCurrentMode(mode: 'snap' | 'annotate' | 'transcribe'): 
 /**
  * Set selected icon (without changing active state)
  */
-export async function setSelectedIcon(icon: 'light' | 'blue' | 'dark'): Promise<void> {
+export async function setSelectedIcon(
+  icon: 'light' | 'blue' | 'dark'
+): Promise<void> {
   await saveExtensionState({
     selectedIcon: icon,
   });
@@ -165,7 +192,9 @@ export async function setSelectedIcon(icon: 'light' | 'blue' | 'dark'): Promise<
 export function onStateChange(callback: (state: ExtensionState) => void): void {
   try {
     if (!chrome?.storage?.onChanged) {
-      console.error('INSIGHT-CLIP: Chrome storage change listener not available');
+      console.error(
+        'INSIGHT-CLIP: Chrome storage change listener not available'
+      );
       return;
     }
 
@@ -182,10 +211,13 @@ export function onStateChange(callback: (state: ExtensionState) => void): void {
         console.error('INSIGHT-CLIP: Error in state change listener:', error);
       }
     });
-    
+
     console.log('INSIGHT-CLIP: State change listener registered');
   } catch (error) {
-    console.error('INSIGHT-CLIP: Failed to register state change listener:', error);
+    console.error(
+      'INSIGHT-CLIP: Failed to register state change listener:',
+      error
+    );
   }
 }
 

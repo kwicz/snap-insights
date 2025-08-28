@@ -1,5 +1,5 @@
 /**
- * Centralized debugging and logging utility for Insight Clip
+ * Centralized debugging and logging utility for SnapInsights
  */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -19,11 +19,19 @@ class DebugLogger {
 
   constructor() {
     // Enable debug mode in development
-    this.isDebugMode = (typeof chrome !== 'undefined' && chrome.runtime?.getManifest()?.name?.includes('Dev')) ||
-                      (typeof window !== 'undefined' && window.location?.hostname === 'localhost');
+    this.isDebugMode =
+      (typeof chrome !== 'undefined' &&
+        chrome.runtime?.getManifest()?.name?.includes('Dev')) ||
+      (typeof window !== 'undefined' &&
+        window.location?.hostname === 'localhost');
   }
 
-  private addLog(level: LogLevel, component: string, message: string, data?: any) {
+  private addLog(
+    level: LogLevel,
+    component: string,
+    message: string,
+    data?: any
+  ) {
     const entry: LogEntry = {
       timestamp: Date.now(),
       level,
@@ -33,7 +41,7 @@ class DebugLogger {
     };
 
     this.logs.push(entry);
-    
+
     // Keep only the last maxLogs entries
     if (this.logs.length > this.maxLogs) {
       this.logs = this.logs.slice(-this.maxLogs);
@@ -82,16 +90,12 @@ class DebugLogger {
 
   // Get logs by component
   getLogsByComponent(component: string, count = 50): LogEntry[] {
-    return this.logs
-      .filter(log => log.component === component)
-      .slice(-count);
+    return this.logs.filter((log) => log.component === component).slice(-count);
   }
 
   // Get logs by level
   getLogsByLevel(level: LogLevel, count = 50): LogEntry[] {
-    return this.logs
-      .filter(log => log.level === level)
-      .slice(-count);
+    return this.logs.filter((log) => log.level === level).slice(-count);
   }
 
   // Clear all logs

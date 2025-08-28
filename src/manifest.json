@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Insight Clip",
+  "name": "SnapInsights",
   "version": "1.0.0",
   "description": "UX Research Screenshot Extension for capturing screenshots with contextual annotations and voice notes",
   "author": "UX Research Team",
@@ -35,7 +35,7 @@
 
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Insight Clip - UX Research Screenshots",
+    "default_title": "SnapInsights - UX Research Screenshots",
     "default_icon": {
       "16": "assets/icons/icon.png",
       "32": "assets/icons/icon.png",
@@ -87,5 +87,5 @@
 
   "options_page": "popup/popup.html",
 
-  "short_name": "Insight Clip"
+  "short_name": "SnapInsights"
 }

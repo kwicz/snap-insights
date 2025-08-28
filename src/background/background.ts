@@ -706,7 +706,7 @@ export async function handleDeactivateExtension(): Promise<{
 
     // Clear badge
     await chrome.action.setBadgeText({ text: '' });
-    await chrome.action.setTitle({ title: 'Insight Clip' });
+    await chrome.action.setTitle({ title: 'SnapInsights' });
 
     // Send deactivation message to content script
     const [tab] = await chrome.tabs.query({
@@ -1006,6 +1006,6 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
     // Clear any badge text (extension starts OFF)
     await chrome.action.setBadgeText({ text: '' });
-    await chrome.action.setTitle({ title: 'Insight Clip' });
+    await chrome.action.setTitle({ title: 'SnapInsights' });
   }
 });

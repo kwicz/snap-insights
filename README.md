@@ -1,4 +1,4 @@
-# Insight Clip - UX Research Screenshot Extension
+# SnapInsights - UX Research Screenshot Extension
 
 A Chrome browser extension designed for UX researchers to capture screenshots with contextual annotations and voice-recorded insights.
 
