@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SnapInsights - UX Research Screenshot Extension</title>
+    <link rel="icon" type="image/png" href="src/assets/icons/icon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        /* Color Palette - matching extension theme */
+        --primary-50: #f0f9ff;
+        --primary-100: #dfedff;
+        --primary-600: #0277c0;
+        --primary-700: #004e7e;
+        --primary-800: #003d63;
+        --primary-900: #002c47;
+
+        --neutral-50: #f8f9fa;
+        --neutral-100: #f1f3f5;
+        --neutral-200: #e9ecef;
+        --neutral-300: #dee2e6;
+        --neutral-600: #6b7280;
+        --neutral-700: #495057;
+        --neutral-800: #343a40;
+        --neutral-900: #1f2937;
+
+        --success-500: #10b981;
+        --error-500: #ef4444;
+
+        /* Typography */
+        --font-family-base: 'League Spartan', -apple-system, BlinkMacSystemFont,
+          'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: var(--font-family-base);
+        line-height: 1.6;
+        color: var(--neutral-800);
+        background-color: #ffffff;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      /* Navigation */
+      .navbar {
+        background: #ffffff;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+      }
+
+      .nav-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0277c0;
+        text-decoration: none;
+      }
+
+      .logo-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        object-fit: contain;
+      }
+
+      .nav-links {
+        display: flex;
+        list-style: none;
+        gap: 2rem;
+      }
+
+      .nav-links a {
+        text-decoration: none;
+        color: var(--neutral-700);
+        font-weight: 500;
+        transition: color 0.2s;
+      }
+
+      .nav-links a:hover {
+        color: #0277c0;
+      }
+
+      /* Hero Section */
+      .hero {
+        background: linear-gradient(
+          135deg,
+          var(--primary-50) 0%,
+          var(--primary-100) 100%
+        );
+        padding: 120px 0 80px;
+        text-align: center;
+      }
+
+      .hero h1 {
+        font-size: 3.5rem;
+        font-weight: 700;
+        color: var(--neutral-900);
+        margin-bottom: 1.5rem;
+      }
+
+      .hero p {
+        font-size: 1.25rem;
+        color: var(--neutral-600);
+        margin-bottom: 2rem;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .cta-button {
+        display: inline-block;
+        background: #0277c0;
+        color: white;
+        padding: 16px 32px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: background-color 0.2s;
+      }
+
+      .cta-button:hover {
+        background: #004e7e;
+      }
+
+      /* Features Section */
+      .features {
+        padding: 80px 0;
+      }
+
+      .section-title {
+        text-align: center;
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--neutral-900);
+        margin-bottom: 3rem;
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 4rem;
+      }
+
+      .feature-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        text-align: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      }
+
+      .feature-icon {
+        width: 64px;
+        height: 64px;
+        background: var(--primary-100);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 1.5rem;
+        color: #0277c0;
+      }
+
+      .feature-card h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--neutral-900);
+        margin-bottom: 1rem;
+      }
+
+      .feature-card p {
+        color: var(--neutral-600);
+        line-height: 1.6;
+      }
+
+      /* How It Works Section */
+      .how-it-works {
+        background: var(--neutral-50);
+        padding: 80px 0;
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
+      }
+
+      .step {
+        text-align: center;
+      }
+
+      .step-image {
+        width: 100%;
+        max-width: 300px;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        margin: 1.5rem auto;
+      }
+
+      .step-number {
+        width: 48px;
+        height: 48px;
+        background: #0277c0;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.25rem;
+        margin: 0 auto 1rem;
+      }
+
+      .step h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--neutral-900);
+        margin-bottom: 0.5rem;
+      }
+
+      .step p {
+        color: var(--neutral-600);
+      }
+
+      /* Security Section */
+      .security {
+        padding: 80px 0;
+      }
+
+      .security-content {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .security-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+
+      .security-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+
+      .security-icon {
+        max-width: 20px;
+        height: 20px;
+        background: var(--success-500);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .security-item div {
+        flex: 1;
+      }
+
+      .security-item h4 {
+        font-weight: 600;
+        color: var(--neutral-900);
+        margin-bottom: 0.25rem;
+      }
+
+      .security-item p {
+        color: var(--neutral-600);
+        font-size: 0.9rem;
+      }
+
+      /* Footer */
+      .footer {
+        background: var(--neutral-900);
+        color: var(--neutral-300);
+        padding: 40px 0;
+        text-align: center;
+      }
+
+      .footer p {
+        margin-bottom: 1rem;
+      }
+
+      .footer a {
+        color: #0277c0;
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .nav-links {
+          display: none;
+        }
+
+        .hero h1 {
+          font-size: 2.5rem;
+        }
+
+        .hero p {
+          font-size: 1.1rem;
+        }
+
+        .section-title {
+          font-size: 2rem;
+        }
+
+        .container {
+          padding: 0 16px;
+        }
+      }
+
+      /* Smooth scrolling */
+      html {
+        scroll-behavior: smooth;
+      }
+
+      /* Keyboard shortcut styling */
+      .kbd {
+        background: var(--neutral-200);
+        border: 1px solid var(--neutral-300);
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-family: var(--font-family-base);
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--neutral-700);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="container">
+        <div class="nav-container">
+          <a href="#" class="logo">
+            <img
+              src="src/assets/icons/icon.png"
+              alt="SnapInsights Logo"
+              class="logo-icon"
+            />
+            SnapInsights
+          </a>
+          <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#security">Security</a></li>
+            <li><a href="#download">Download</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container">
+        <h1>SnapInsights</h1>
+        <p>
+          The Chrome extension designed for UX researchers to capture
+          screenshots with contextual annotations and voice-recorded insights.
+        </p>
+        <a href="#download" class="cta-button">Get Extension</a>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+      <div class="container">
+        <h2 class="section-title">Powerful Features for UX Research</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">📸</div>
+            <h3>Quick Screenshot Capture</h3>
+            <p>
+              Capture screenshots instantly with <span class="kbd">Alt</span> +
+              <span class="kbd">Click</span>. Visual markers show exactly where
+              you clicked for precise documentation.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">✏️</div>
+            <h3>Text Annotations</h3>
+            <p>
+              Add contextual notes directly to your screenshots. Perfect for
+              documenting usability issues, design patterns, and user journey
+              insights.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🎤</div>
+            <h3>Voice Transcription</h3>
+            <p>
+              Record voice memos that are automatically transcribed using Web
+              Speech API. Ideal for capturing nuanced observations hands-free.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📁</div>
+            <h3>Automatic Organization</h3>
+            <p>
+              Screenshots are automatically saved with structured naming and
+              metadata including timestamps, URLs, and coordinates.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3>Precise Markers</h3>
+            <p>
+              Choose from light, blue, or dark touchpoint markers to ensure
+              visibility on any background or design.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Research Workflow</h3>
+            <p>
+              Streamlined for competitive analysis, heuristic evaluations, and
+              user journey mapping without breaking your flow.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+      <div class="container">
+        <h2 class="section-title">How It Works</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <h3>Choose Your Mode</h3>
+            <p>
+              Select from Snap, Annotate, or Transcribe mode in the extension
+              popup based on your research needs.
+            </p>
+            <img
+              src="assets/popup.png"
+              alt="Extension popup showing mode selection"
+              class="step-image"
+            />
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <h3>Capture Insights</h3>
+            <p>
+              Use <span class="kbd">Alt</span> +
+              <span class="kbd">Click</span> to capture screenshots, add
+              annotations, or record voice memos at specific locations.
+            </p>
+            <img
+              src="assets/transcription.png"
+              alt="Voice transcription interface"
+              class="step-image"
+            />
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <h3>Automatic Save</h3>
+            <p>
+              Screenshots are automatically saved to your Downloads folder with
+              embedded metadata and structured naming.
+            </p>
+            <img
+              src="assets/endresult.png"
+              alt="Final screenshot with annotations saved"
+              class="step-image"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Security Section -->
+    <section id="security" class="security">
+      <div class="container">
+        <h2 class="section-title">Security & Privacy Policy</h2>
+        <div class="security-content">
+          <p
+            style="
+              text-align: center;
+              margin-bottom: 2rem;
+              color: var(--neutral-600);
+              font-size: 1.1rem;
+            "
+          >
+            Your privacy and data security are our top priorities. SnapInsights
+            is designed with privacy-first principles.
+          </p>
+
+          <div class="security-grid">
+            <div class="security-item">
+              <div class="security-icon">✓</div>
+              <div>
+                <h4>Local Storage Only</h4>
+                <p>
+                  All screenshots and data are saved locally to your device.
+                  Nothing is uploaded to external servers or cloud storage.
+                </p>
+              </div>
+            </div>
+            <div class="security-item">
+              <div class="security-icon">✓</div>
+              <div>
+                <h4>No Data Collection</h4>
+                <p>
+                  We don't collect, track, or store any personal information,
+                  browsing history, or usage analytics.
+                </p>
+              </div>
+            </div>
+            <div class="security-item">
+              <div class="security-icon">✓</div>
+              <div>
+                <h4>Minimal Permissions</h4>
+                <p>
+                  Only requests essential permissions: activeTab for
+                  screenshots, storage for settings, and downloads for saving
+                  files.
+                </p>
+              </div>
+            </div>
+            <div class="security-item">
+              <div class="security-icon">✓</div>
+              <div>
+                <h4>Open Source</h4>
+                <p>
+                  Source code is available for review. No hidden functionality
+                  or tracking mechanisms.
+                </p>
+              </div>
+            </div>
+            <div class="security-item">
+              <div class="security-icon">✓</div>
+              <div>
+                <h4>Secure Voice Processing</h4>
+                <p>
+                  Voice transcription uses browser's native Web Speech API.
+                  Audio is processed locally and not transmitted.
+                </p>
+              </div>
+            </div>
+            <div class="security-item">
+              <div class="security-icon">✓</div>
+              <div>
+                <h4>No Third-Party Services</h4>
+                <p>
+                  Extension operates independently without external APIs,
+                  analytics, or advertising networks.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style="
+              margin-top: 3rem;
+              padding: 2rem;
+              background: var(--neutral-50);
+              border-radius: 12px;
+            "
+          >
+            <h3 style="color: var(--neutral-900); margin-bottom: 1rem">
+              Data Handling
+            </h3>
+            <ul style="color: var(--neutral-600); line-height: 1.8">
+              <li>
+                <strong>Screenshots:</strong> Captured using Chrome's native
+                captureVisibleTab API and saved directly to your Downloads
+                folder
+              </li>
+              <li>
+                <strong>Annotations:</strong> Text and voice transcriptions are
+                embedded as metadata in the image files
+              </li>
+              <li>
+                <strong>Settings:</strong> User preferences (mode selection,
+                marker style) are stored locally using Chrome's storage API
+              </li>
+              <li>
+                <strong>Website URLs:</strong> Only captured as metadata for
+                research context - not transmitted or stored externally
+              </li>
+            </ul>
+          </div>
+
+          <div
+            style="
+              margin-top: 2rem;
+              padding: 1.5rem;
+              background: var(--primary-50);
+              border-radius: 12px;
+              border-left: 4px solid #0277c0;
+            "
+          >
+            <h4 style="color: #003d63; margin-bottom: 0.5rem">
+              Commitment to Privacy
+            </h4>
+            <p style="color: var(--neutral-700); margin: 0">
+              SnapInsights will never sell, share, or monetize your data. This
+              extension exists solely to improve UX research workflows while
+              respecting your privacy and maintaining complete data ownership.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="hero" style="padding: 60px 0">
+      <div class="container">
+        <h2 style="font-size: 2.5rem; margin-bottom: 1rem">
+          Ready to Enhance Your UX Research?
+        </h2>
+        <p style="margin-bottom: 2rem">
+          Install SnapInsights and streamline your competitive analysis and
+          usability research workflows.
+        </p>
+        <a
+          href="https://github.com/your-username/snapinsights"
+          class="cta-button"
+          >Download from GitHub</a
+        >
+        <p
+          style="margin-top: 1rem; font-size: 0.9rem; color: var(--neutral-600)"
+        >
+          Chrome Web Store submission coming soon. For now, install manually
+          from GitHub.
+        </p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <p>&copy; 2024 SnapInsights. Open source UX research tool.</p>
+        <p>
+          <a href="https://github.com/your-username/snapinsights"
+            >GitHub Repository</a
+          >
+          |
+          <a href="https://github.com/your-username/snapinsights/issues"
+            >Report Issues</a
+          >
+          |
+          <a href="#security">Privacy Policy</a>
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      // Smooth scrolling for navigation links
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener('click', function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute('href'));
+          if (target) {
+            target.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start',
+            });
+          }
+        });
+      });
+
+      // Add scroll effect to navbar
+      window.addEventListener('scroll', function () {
+        const navbar = document.querySelector('.navbar');
+        if (window.scrollY > 100) {
+          navbar.style.background = 'rgba(255, 255, 255, 0.95)';
+          navbar.style.backdropFilter = 'blur(10px)';
+        } else {
+          navbar.style.background = '#ffffff';
+          navbar.style.backdropFilter = 'none';
+        }
+      });
+    </script>
+  </body>
+</html>

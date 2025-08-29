@@ -2,6 +2,8 @@
 
 A Chrome browser extension designed for UX researchers to capture screenshots with contextual annotations and voice-recorded insights.
 
+![Extension Popup](assets/popup.png)
+
 ## Features
 
 - Quick screenshot capture with Alt+Click
@@ -9,6 +11,23 @@ A Chrome browser extension designed for UX researchers to capture screenshots wi
 - Automatic file organization
 - Metadata embedding
 - Research workflow optimization
+
+## How It Works
+
+### 1. Choose Your Mode
+Select from Snap, Annotate, or Transcribe mode in the extension popup based on your research needs.
+
+![Extension Popup](assets/popup.png)
+
+### 2. Capture Insights
+Use **Alt + Click** to capture screenshots, add annotations, or record voice memos at specific locations.
+
+![Voice Transcription Interface](assets/transcription.png)
+
+### 3. Automatic Save
+Screenshots are automatically saved to your Downloads folder with embedded metadata and structured naming.
+
+![Final Result](assets/endresult.png)
 
 ## Development
 
