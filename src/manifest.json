@@ -3,7 +3,7 @@
   "name": "SnapInsights",
   "version": "1.0.0",
   "description": "UX Research Screenshot Extension for capturing screenshots with contextual annotations and voice notes",
-  "author": "UX Research Team",
+  "author": "Katy Solovewicz @ The Good",
 
   "permissions": [
     "activeTab",
