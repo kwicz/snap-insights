@@ -56,12 +56,8 @@ export class ExtensionLifecycleHandler {
 
     } catch (error) {
       backgroundLogger.error('Failed to activate extension:', error);
-      throw new ExtensionError(
-        'Failed to activate extension',
-        'operation',
-        'activation_error',
-        { originalError: error }
-      );
+      // Re-throw the original error to preserve specific error messages for tests
+      throw error;
     }
   }
 
@@ -250,6 +246,7 @@ export class ExtensionLifecycleHandler {
 
     } catch (error) {
       backgroundLogger.error('Failed to inject content script:', error);
+      // Preserve original error message for specific error handling
       throw error;
     }
   }

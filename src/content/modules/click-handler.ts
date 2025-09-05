@@ -92,21 +92,31 @@ export class ClickHandler {
     });
 
     // Handle based on current mode
-    switch (this.currentMode) {
-      case EXTENSION_MODES.SNAP:
-        this.config.onSnapClick(coordinates);
-        break;
+    try {
+      switch (this.currentMode) {
+        case EXTENSION_MODES.SNAP:
+          if (this.config.onSnapClick) {
+            this.config.onSnapClick(coordinates);
+          }
+          break;
 
-      case EXTENSION_MODES.ANNOTATE:
-        this.config.onAnnotateClick(coordinates);
-        break;
+        case EXTENSION_MODES.ANNOTATE:
+          if (this.config.onAnnotateClick) {
+            this.config.onAnnotateClick(coordinates);
+          }
+          break;
 
-      case EXTENSION_MODES.TRANSCRIBE:
-        this.config.onTranscribeClick(coordinates);
-        break;
+        case EXTENSION_MODES.TRANSCRIBE:
+          if (this.config.onTranscribeClick) {
+            this.config.onTranscribeClick(coordinates);
+          }
+          break;
 
-      default:
-        contentLogger.warn('Unknown mode:', this.currentMode);
+        default:
+          contentLogger.warn('Unknown mode:', this.currentMode);
+      }
+    } catch (error) {
+      contentLogger.error('Error handling click:', error);
     }
 
     event.preventDefault();
