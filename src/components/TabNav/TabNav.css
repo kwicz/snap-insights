@@ -27,7 +27,7 @@
 }
 
 .tab-button:not(.active):hover {
-  background: var(--bg-tertiary);
+  background: var(--primary-100);
 }
 
 .tab-icon {

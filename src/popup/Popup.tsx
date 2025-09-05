@@ -373,8 +373,14 @@ export const Popup: React.FC = () => {
                   }
                   disabled={state.isLoading}
                 >
-                  <div className='mode-icon'>{TabIcons.Start}</div>
-                  <span className='mode-label'>Start</span>
+                  <div className='mode-icon'>
+                    {state.activeMode === 'start'
+                      ? TabIcons.Pause
+                      : TabIcons.Start}
+                  </div>
+                  <span className='mode-label'>
+                    {state.activeMode === 'start' ? 'Pause' : 'Start'}
+                  </span>
                 </button>
               </div>
             </div>
