@@ -3,14 +3,15 @@ import { ExtensionSettings } from '@/types';
 import './Popup.css';
 
 // Components
-import { TabIcons } from '@/components/TabNav';
+import TabNav, { TabIcons } from '@/components/TabNav';
 import TheGoodLogo from '@/components/thegoodlogo';
 
 export interface PopupState {
   settings: ExtensionSettings;
   isLoading: boolean;
   error: string | null;
-  activeMode: 'snap' | 'annotate' | 'transcribe' | null;
+  activeTab: 'moment' | 'journey';
+  activeMode: 'snap' | 'annotate' | 'transcribe' | 'start' | null;
   selectedIcon: 'light' | 'blue' | 'dark';
   stats: {
     totalScreenshots: number;
@@ -63,6 +64,7 @@ export const Popup: React.FC = () => {
     settings: DEFAULT_SETTINGS,
     isLoading: false,
     error: null,
+    activeTab: 'moment', // Default to moment tab
     activeMode: null, // No mode selected by default
     selectedIcon: 'blue', // Default to blue touchpoint
     stats: {
@@ -70,6 +72,20 @@ export const Popup: React.FC = () => {
       lastCaptured: null,
     },
   });
+
+  // Tab definitions
+  const tabs = [
+    {
+      id: 'moment',
+      label: 'Snap a moment',
+      icon: TabIcons.Snap,
+    },
+    {
+      id: 'journey',
+      label: 'Snap a journey',
+      icon: TabIcons.Start,
+    },
+  ];
 
   // Load extension state when popup opens
   useEffect(() => {
@@ -127,8 +143,17 @@ export const Popup: React.FC = () => {
     };
   }, []);
 
+  const handleTabChange = (tabId: string) => {
+    setState((prev) => ({
+      ...prev,
+      activeTab: tabId as 'moment' | 'journey',
+      activeMode: null, // Reset mode when switching tabs
+      error: null,
+    }));
+  };
+
   const handleModeSelect = async (
-    mode: 'snap' | 'annotate' | 'transcribe' | null
+    mode: 'snap' | 'annotate' | 'transcribe' | 'start' | null
   ) => {
     setState((prev) => ({
       ...prev,
@@ -230,93 +255,172 @@ export const Popup: React.FC = () => {
         <h1 className='app-title'>SnapInsights</h1>
       </div>
 
-      <div className='mode-selection'>
-        <h2 className='section-title'>Choose your mode:</h2>
-        <div className='mode-grid'>
-          <button
-            className={`mode-button snap-button ${
-              state.activeMode === 'snap' ? 'active' : ''
-            }`}
-            onClick={() =>
-              handleModeSelect(state.activeMode === 'snap' ? null : 'snap')
-            }
-            disabled={state.isLoading}
-          >
-            <div className='mode-icon'>{TabIcons.Snap}</div>
-            <span className='mode-label'>Snap</span>
-          </button>
+      <TabNav
+        tabs={tabs}
+        activeTab={state.activeTab}
+        onTabChange={handleTabChange}
+      />
 
-          <button
-            className={`mode-button annotate-button ${
-              state.activeMode === 'annotate' ? 'active' : ''
-            }`}
-            onClick={() =>
-              handleModeSelect(
-                state.activeMode === 'annotate' ? null : 'annotate'
-              )
-            }
-            disabled={state.isLoading}
-          >
-            <div className='mode-icon'>{TabIcons.Annotate}</div>
-            <span className='mode-label'>Annotate</span>
-          </button>
+      <div className='popup-body'>
+        {state.activeTab === 'moment' && (
+          <>
+            <div className='mode-selection'>
+              <h2 className='section-title'>Choose your mode:</h2>
+              <div className='mode-grid'>
+                <button
+                  className={`mode-button snap-button ${
+                    state.activeMode === 'snap' ? 'active' : ''
+                  }`}
+                  onClick={() =>
+                    handleModeSelect(
+                      state.activeMode === 'snap' ? null : 'snap'
+                    )
+                  }
+                  disabled={state.isLoading}
+                >
+                  <div className='mode-icon'>{TabIcons.Snap}</div>
+                  <span className='mode-label'>Snap</span>
+                </button>
 
-          <button
-            className={`mode-button transcribe-button ${
-              state.activeMode === 'transcribe' ? 'active' : ''
-            }`}
-            onClick={() =>
-              handleModeSelect(
-                state.activeMode === 'transcribe' ? null : 'transcribe'
-              )
-            }
-            disabled={state.isLoading}
-          >
-            <div className='mode-icon'>{TabIcons.Transcribe}</div>
-            <span className='mode-label'>Transcribe</span>
-          </button>
-        </div>
-      </div>
+                <button
+                  className={`mode-button annotate-button ${
+                    state.activeMode === 'annotate' ? 'active' : ''
+                  }`}
+                  onClick={() =>
+                    handleModeSelect(
+                      state.activeMode === 'annotate' ? null : 'annotate'
+                    )
+                  }
+                  disabled={state.isLoading}
+                >
+                  <div className='mode-icon'>{TabIcons.Annotate}</div>
+                  <span className='mode-label'>Annotate</span>
+                </button>
 
-      <div className='icon-selection'>
-        <h2 className='section-title'>Choose your icon:</h2>
-        <div className='icon-selection-container'>
-          <div className='icon-grid'>
-            <div
-              className={`icon-option ${
-                state.selectedIcon === 'light' ? 'selected' : ''
-              }`}
-              onClick={() => handleIconSelect('light')}
-            >
-              <img
-                src='../assets/icons/touchpoint-light.png'
-                alt='Light Touchpoint'
-              />
+                <button
+                  className={`mode-button transcribe-button ${
+                    state.activeMode === 'transcribe' ? 'active' : ''
+                  }`}
+                  onClick={() =>
+                    handleModeSelect(
+                      state.activeMode === 'transcribe' ? null : 'transcribe'
+                    )
+                  }
+                  disabled={state.isLoading}
+                >
+                  <div className='mode-icon'>{TabIcons.Transcribe}</div>
+                  <span className='mode-label'>Transcribe</span>
+                </button>
+              </div>
             </div>
-            <div
-              className={`icon-option ${
-                state.selectedIcon === 'blue' ? 'selected' : ''
-              }`}
-              onClick={() => handleIconSelect('blue')}
-            >
-              <img
-                src='../assets/icons/touchpoint-blue.png'
-                alt='Blue Touchpoint'
-              />
+
+            <div className='icon-selection'>
+              <h2 className='section-title'>Choose your icon:</h2>
+              <div className='icon-selection-container'>
+                <div className='icon-grid'>
+                  <div
+                    className={`icon-option ${
+                      state.selectedIcon === 'light' ? 'selected' : ''
+                    }`}
+                    onClick={() => handleIconSelect('light')}
+                  >
+                    <img
+                      src='../assets/icons/touchpoint-light.png'
+                      alt='Light Touchpoint'
+                    />
+                  </div>
+                  <div
+                    className={`icon-option ${
+                      state.selectedIcon === 'blue' ? 'selected' : ''
+                    }`}
+                    onClick={() => handleIconSelect('blue')}
+                  >
+                    <img
+                      src='../assets/icons/touchpoint-blue.png'
+                      alt='Blue Touchpoint'
+                    />
+                  </div>
+                  <div
+                    className={`icon-option ${
+                      state.selectedIcon === 'dark' ? 'selected' : ''
+                    }`}
+                    onClick={() => handleIconSelect('dark')}
+                  >
+                    <img
+                      src='../assets/icons/touchpoint-dark.png'
+                      alt='Dark Touchpoint'
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div
-              className={`icon-option ${
-                state.selectedIcon === 'dark' ? 'selected' : ''
-              }`}
-              onClick={() => handleIconSelect('dark')}
-            >
-              <img
-                src='../assets/icons/touchpoint-dark.png'
-                alt='Dark Touchpoint'
-              />
+          </>
+        )}
+
+        {state.activeTab === 'journey' && (
+          <>
+            <div className='mode-selection'>
+              <h2 className='section-title'>Choose your mode:</h2>
+              <div className='mode-grid'>
+                <button
+                  className={`mode-button start-button ${
+                    state.activeMode === 'start' ? 'active' : ''
+                  }`}
+                  onClick={() =>
+                    handleModeSelect(
+                      state.activeMode === 'start' ? null : 'start'
+                    )
+                  }
+                  disabled={state.isLoading}
+                >
+                  <div className='mode-icon'>{TabIcons.Start}</div>
+                  <span className='mode-label'>Start</span>
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
+
+            <div className='icon-selection'>
+              <h2 className='section-title'>Choose your icon:</h2>
+              <div className='icon-selection-container'>
+                <div className='icon-grid'>
+                  <div
+                    className={`icon-option ${
+                      state.selectedIcon === 'light' ? 'selected' : ''
+                    }`}
+                    onClick={() => handleIconSelect('light')}
+                  >
+                    <img
+                      src='../assets/icons/touchpoint-light.png'
+                      alt='Light Touchpoint'
+                    />
+                  </div>
+                  <div
+                    className={`icon-option ${
+                      state.selectedIcon === 'blue' ? 'selected' : ''
+                    }`}
+                    onClick={() => handleIconSelect('blue')}
+                  >
+                    <img
+                      src='../assets/icons/touchpoint-blue.png'
+                      alt='Blue Touchpoint'
+                    />
+                  </div>
+                  <div
+                    className={`icon-option ${
+                      state.selectedIcon === 'dark' ? 'selected' : ''
+                    }`}
+                    onClick={() => handleIconSelect('dark')}
+                  >
+                    <img
+                      src='../assets/icons/touchpoint-dark.png'
+                      alt='Dark Touchpoint'
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className='footer-section'>

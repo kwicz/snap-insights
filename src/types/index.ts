@@ -141,7 +141,7 @@ export interface AnnotationData {
 /**
  * Extension operation mode
  */
-export type ExtensionMode = 'snap' | 'annotate' | 'transcribe';
+export type ExtensionMode = 'snap' | 'annotate' | 'transcribe' | 'start';
 
 /**
  * Error categories for better error handling

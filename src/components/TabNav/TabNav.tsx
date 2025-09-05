@@ -23,7 +23,6 @@ const TabNav: React.FC<TabNavProps> = ({ tabs, activeTab, onTabChange }) => {
           onClick={() => onTabChange(tab.id)}
           data-tab={tab.id}
         >
-          <div className='tab-icon'>{tab.icon}</div>
           <span className='tab-label'>{tab.label}</span>
         </button>
       ))}
@@ -66,6 +65,16 @@ export const TabIcons = {
         strokeLinejoin='round'
         strokeWidth='1'
         d='M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z'
+      />
+    </svg>
+  ),
+  Start: (
+    <svg viewBox='0 0 24 24'>
+      <path
+        strokeLinecap='round'
+        strokeLinejoin='round'
+        strokeWidth='1'
+        d='M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
       />
     </svg>
   ),

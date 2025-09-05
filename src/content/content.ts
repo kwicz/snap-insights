@@ -1,6 +1,6 @@
 // Extension state
 let extensionActive = false;
-let currentMode: 'snap' | 'annotate' | 'transcribe' | null = null;
+let currentMode: 'snap' | 'annotate' | 'transcribe' | 'start' | null = null;
 let selectedIcon: 'light' | 'blue' | 'dark' = 'blue';
 
 // Annotation dialog state
@@ -75,6 +75,12 @@ function handleClick(event: MouseEvent): void {
     case 'transcribe':
       showClickFeedback(coordinates);
       startTranscription(coordinates);
+      break;
+
+    case 'start':
+      showClickFeedback(coordinates);
+      // For now, start mode behaves like snap mode
+      captureScreenshot(coordinates);
       break;
   }
 

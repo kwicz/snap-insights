@@ -1,7 +1,6 @@
 .tab-nav {
   display: flex;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--primary-100);
   height: var(--tab-height);
 }
 
@@ -9,29 +8,22 @@
   flex: 1;
   padding: var(--item-spacing);
   border: none;
-  background: var(--bg-primary);
+  background: var(--primary-600);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   transition: all var(--transition-base);
-  color: var(--primary-500);
-  border-radius: 0;
+  color: white;
+  border-radius: 24px 24px 0 0;
   position: relative;
 }
 
-.tab-button:first-child {
-  border-top-left-radius: 0;
-}
-
-.tab-button:last-child {
-  border-top-right-radius: 0;
-}
-
 .tab-button.active {
-  background: var(--primary-500);
-  color: white;
+  background: white;
+  color: var(--primary-600);
 }
 
 .tab-button:not(.active):hover {
@@ -51,23 +43,21 @@
 }
 
 .tab-label {
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 /* Active indicator line */
-.tab-button.active::after {
+/* .tab-button.active::after {
   content: '';
   position: absolute;
   bottom: -1px;
   left: 0;
   width: 100%;
   height: 2px;
-  background: var(--primary-500);
   transition: transform var(--transition-base);
-}
+} */
 
 /* Tab transition animations */
 .tab-button {
@@ -75,7 +65,7 @@
   overflow: hidden;
 }
 
-.tab-button::before {
+/* .tab-button::before {
   content: '';
   position: absolute;
   top: 0;
@@ -90,7 +80,7 @@
 
 .tab-button.active::before {
   transform: translateY(0);
-}
+} */
 
 .tab-icon,
 .tab-label {

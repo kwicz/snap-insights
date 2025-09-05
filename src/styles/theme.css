@@ -6,9 +6,9 @@
   --primary-300: #dfedff;
   --primary-400: #dfedff;
   --primary-500: #dfedff;
-  --primary-600: #2563eb;
-  --primary-700: #1d4ed8;
-  --primary-800: #1e40af;
+  --primary-600: #0277c0;
+  --primary-700: #0277c0;
+  --primary-800: #0277c0;
   --primary-900: #1e3a8a;
 
   --neutral-50: #f8f9fa;
@@ -35,8 +35,8 @@
   --warning-700: #b45309;
 
   /* Typography */
-  --font-family-base: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+  --font-family-base: 'League Spartan', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-family-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     monospace;
 

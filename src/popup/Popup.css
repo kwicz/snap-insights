@@ -24,7 +24,6 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 24px;
   box-sizing: border-box;
 }
 
@@ -32,9 +31,7 @@ body {
 .popup-header {
   display: flex;
   align-items: center;
-  margin-bottom: 32px;
   background: #dfedff;
-  margin: -24px -24px 32px -24px;
   padding: 12px;
 }
 
@@ -57,6 +54,10 @@ body {
   text-align: center;
 }
 
+.popup-body {
+  padding: 24px;
+}
+
 /* Mode Selection Section */
 .mode-selection {
   margin-bottom: 24px;
@@ -73,7 +74,8 @@ body {
 
 .mode-grid {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 20px;
 }
 
 .mode-button {

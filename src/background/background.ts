@@ -778,6 +778,10 @@ export async function updateBadge(mode: ExtensionMode): Promise<void> {
       text = 'T';
       title = 'Transcribe Mode';
       break;
+    case 'start':
+      text = 'J';
+      title = 'Journey Mode';
+      break;
     default:
       text = 'S';
       title = 'Snap Mode';
