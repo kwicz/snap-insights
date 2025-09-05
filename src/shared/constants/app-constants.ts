@@ -26,7 +26,6 @@ export const STORAGE_KEYS = {
   SCREENSHOTS: 'screenshots',
   STATS: 'stats',
   EXTENSION_STATE: 'extensionState',
-  EXTENSION_ACTIVE: 'extensionActive',
   CURRENT_MODE: 'currentMode',
   SELECTED_ICON: 'selectedIcon',
 } as const;
@@ -56,7 +55,8 @@ export const EXTENSION_MODES = {
   TRANSCRIBE: 'transcribe',
 } as const;
 
-export type ExtensionMode = typeof EXTENSION_MODES[keyof typeof EXTENSION_MODES];
+export type ExtensionMode =
+  (typeof EXTENSION_MODES)[keyof typeof EXTENSION_MODES];
 
 // Icon types
 export const ICON_TYPES = {
@@ -65,7 +65,7 @@ export const ICON_TYPES = {
   DARK: 'dark',
 } as const;
 
-export type IconType = typeof ICON_TYPES[keyof typeof ICON_TYPES];
+export type IconType = (typeof ICON_TYPES)[keyof typeof ICON_TYPES];
 
 // Default settings
 export const DEFAULT_SETTINGS = {
@@ -73,17 +73,21 @@ export const DEFAULT_SETTINGS = {
   ICON: ICON_TYPES.BLUE,
   MARKER_SIZE: 32,
   MARKER_OPACITY: 0.8,
-  FONT_FAMILY: 'League Spartan, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  FONT_FAMILY:
+    'League Spartan, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 } as const;
 
 // Error messages
 export const ERROR_MESSAGES = {
-  EXTENSION_CONTEXT_INVALID: 'Extension context invalidated. Please refresh the page.',
+  EXTENSION_CONTEXT_INVALID:
+    'Extension context invalidated. Please refresh the page.',
   NO_ACTIVE_TAB: 'No active tab found',
-  MICROPHONE_ACCESS_DENIED: 'Microphone access denied. Please allow microphone access and try again.',
+  MICROPHONE_ACCESS_DENIED:
+    'Microphone access denied. Please allow microphone access and try again.',
   MICROPHONE_NOT_FOUND: 'No microphone found. Please check your audio device.',
   SCREENSHOT_CAPTURE_FAILED: 'Failed to capture screenshot',
-  SYSTEM_PAGE_ERROR: 'Cannot use Snap Mode on system pages. Please navigate to a regular website and try again.',
+  SYSTEM_PAGE_ERROR:
+    'Cannot use Snap Mode on system pages. Please navigate to a regular website and try again.',
   RATE_LIMIT_ERROR: 'Please wait a moment before taking another screenshot',
 } as const;
 

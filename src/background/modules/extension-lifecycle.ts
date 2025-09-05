@@ -3,8 +3,16 @@
  */
 
 import { fontService } from '../services/font-service';
-import { STORAGE_KEYS, EXTENSION_MODES, ICON_TYPES, ERROR_MESSAGES } from '@/shared/constants/app-constants';
-import { isValidTabUrl, getSystemPageError } from '@/shared/utils/context-utils';
+import {
+  STORAGE_KEYS,
+  EXTENSION_MODES,
+  ICON_TYPES,
+  ERROR_MESSAGES,
+} from '@/shared/constants/app-constants';
+import {
+  isValidTabUrl,
+  getSystemPageError,
+} from '@/shared/utils/context-utils';
 import { backgroundLogger } from '@/utils/debug-logger';
 import { ExtensionError, ExtensionSettings, ExtensionMode } from '@/types';
 
@@ -20,7 +28,9 @@ export class ExtensionLifecycleHandler {
   /**
    * Handle extension activation
    */
-  async handleActivateExtension(data: ActivationData): Promise<{ success: boolean }> {
+  async handleActivateExtension(
+    data: ActivationData
+  ): Promise<{ success: boolean }> {
     try {
       backgroundLogger.debug('Activating extension', data);
 
@@ -29,7 +39,6 @@ export class ExtensionLifecycleHandler {
 
       // Store the current mode and selected icon
       await chrome.storage.local.set({
-        [STORAGE_KEYS.EXTENSION_ACTIVE]: true,
         [STORAGE_KEYS.CURRENT_MODE]: data.mode,
         [STORAGE_KEYS.SELECTED_ICON]: data.selectedIcon,
       });
@@ -53,7 +62,6 @@ export class ExtensionLifecycleHandler {
 
       backgroundLogger.info('Extension activated successfully', data);
       return { success: true };
-
     } catch (error) {
       backgroundLogger.error('Failed to activate extension:', error);
       // Re-throw the original error to preserve specific error messages for tests
@@ -70,7 +78,6 @@ export class ExtensionLifecycleHandler {
 
       // Store the inactive state
       await chrome.storage.local.set({
-        [STORAGE_KEYS.EXTENSION_ACTIVE]: false,
         [STORAGE_KEYS.CURRENT_MODE]: null,
         [STORAGE_KEYS.SELECTED_ICON]: null,
       });
@@ -88,13 +95,14 @@ export class ExtensionLifecycleHandler {
           });
         } catch (error) {
           // Content script might not be injected, ignore error
-          backgroundLogger.debug('Content script not available for deactivation message');
+          backgroundLogger.debug(
+            'Content script not available for deactivation message'
+          );
         }
       }
 
       backgroundLogger.info('Extension deactivated successfully');
       return { success: true };
-
     } catch (error) {
       backgroundLogger.error('Failed to deactivate extension:', error);
       throw new ExtensionError(
@@ -153,12 +161,13 @@ export class ExtensionLifecycleHandler {
         },
       };
 
-      await chrome.storage.sync.set({ [STORAGE_KEYS.SETTINGS]: defaultSettings });
+      await chrome.storage.sync.set({
+        [STORAGE_KEYS.SETTINGS]: defaultSettings,
+      });
 
-      // Set initial extension state to OFF
+      // Set initial extension state to no mode selected
       await chrome.storage.local.set({
-        [STORAGE_KEYS.EXTENSION_ACTIVE]: false,
-        [STORAGE_KEYS.CURRENT_MODE]: EXTENSION_MODES.SNAP,
+        [STORAGE_KEYS.CURRENT_MODE]: null,
         [STORAGE_KEYS.SELECTED_ICON]: ICON_TYPES.BLUE,
       });
 
@@ -167,7 +176,6 @@ export class ExtensionLifecycleHandler {
       await chrome.action.setTitle({ title: 'SnapInsights' });
 
       backgroundLogger.info('Extension installation completed');
-
     } catch (error) {
       backgroundLogger.error('Failed to handle installation:', error);
       throw new ExtensionError(
@@ -206,7 +214,7 @@ export class ExtensionLifecycleHandler {
 
     await chrome.action.setBadgeText({ text });
     await chrome.action.setTitle({ title });
-    
+
     backgroundLogger.debug('Badge updated', { mode, text, title });
   }
 
@@ -215,7 +223,10 @@ export class ExtensionLifecycleHandler {
    */
   private async getActiveTab(): Promise<chrome.tabs.Tab | null> {
     try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tabs = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
       return tabs[0] || null;
     } catch (error) {
       backgroundLogger.error('Failed to get active tab:', error);
@@ -234,7 +245,7 @@ export class ExtensionLifecycleHandler {
       });
 
       // Wait for script to load
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Test if content script is responsive
       try {
@@ -243,7 +254,6 @@ export class ExtensionLifecycleHandler {
       } catch (pingError) {
         backgroundLogger.warn('Content script not responding after injection');
       }
-
     } catch (error) {
       backgroundLogger.error('Failed to inject content script:', error);
       // Preserve original error message for specific error handling
@@ -254,7 +264,10 @@ export class ExtensionLifecycleHandler {
   /**
    * Send activation message to content script
    */
-  private async sendActivationMessage(tabId: number, data: ActivationData): Promise<void> {
+  private async sendActivationMessage(
+    tabId: number,
+    data: ActivationData
+  ): Promise<void> {
     try {
       await chrome.tabs.sendMessage(tabId, {
         type: 'ACTIVATE_CAPTURE_MODE',

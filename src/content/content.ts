@@ -1,6 +1,6 @@
 // Extension state
 let extensionActive = false;
-let currentMode: 'snap' | 'annotate' | 'transcribe' = 'snap';
+let currentMode: 'snap' | 'annotate' | 'transcribe' | null = null;
 let selectedIcon: 'light' | 'blue' | 'dark' = 'blue';
 
 // Annotation dialog state
@@ -43,8 +43,8 @@ function isExtensionContextValid(): boolean {
 
 // Handle click events
 function handleClick(event: MouseEvent): void {
-  // Only handle Alt+Click when extension is active
-  if (!extensionActive) {
+  // Only handle Alt+Click when extension is active and a mode is selected
+  if (!extensionActive || !currentMode) {
     return;
   }
 
@@ -650,7 +650,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'ACTIVATE_CAPTURE_MODE':
       extensionActive = true;
-      currentMode = message.data.mode || 'snap';
+      currentMode = message.data.mode || null;
       selectedIcon = message.data.selectedIcon || 'blue';
 
       // Load the font when extension activates

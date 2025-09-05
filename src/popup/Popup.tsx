@@ -10,9 +10,8 @@ export interface PopupState {
   settings: ExtensionSettings;
   isLoading: boolean;
   error: string | null;
-  activeMode: 'snap' | 'annotate' | 'transcribe';
+  activeMode: 'snap' | 'annotate' | 'transcribe' | null;
   selectedIcon: 'light' | 'blue' | 'dark';
-  isExtensionActive: boolean;
   stats: {
     totalScreenshots: number;
     lastCaptured: number | null;
@@ -64,9 +63,8 @@ export const Popup: React.FC = () => {
     settings: DEFAULT_SETTINGS,
     isLoading: false,
     error: null,
-    activeMode: 'snap', // Default mode selection
+    activeMode: null, // No mode selected by default
     selectedIcon: 'blue', // Default to blue touchpoint
-    isExtensionActive: false, // Default to OFF state
     stats: {
       totalScreenshots: 0,
       lastCaptured: null,
@@ -90,49 +88,17 @@ export const Popup: React.FC = () => {
 
         // Get current extension state from storage
         const result = await chrome.storage.local.get([
-          'extensionActive',
           'currentMode',
           'selectedIcon',
         ]);
 
-        // Ensure proper boolean conversion and default values
-        let isActive = result.extensionActive === true;
-        const mode = result.currentMode || 'snap';
+        const mode = result.currentMode || null;
         const icon = result.selectedIcon || 'blue';
-
-        // If storage says extension is active, verify it's actually working
-        if (isActive) {
-          try {
-            // Test if content script is actually active on current tab
-            const [tab] = await chrome.tabs.query({
-              active: true,
-              currentWindow: true,
-            });
-            if (tab?.id) {
-              const pingResponse = await chrome.tabs.sendMessage(tab.id, {
-                type: 'PING',
-              });
-
-              // If content script doesn't respond, extension isn't actually active
-              if (!pingResponse?.success) {
-                isActive = false;
-                await chrome.storage.local.set({ extensionActive: false });
-              }
-            } else {
-              isActive = false;
-              await chrome.storage.local.set({ extensionActive: false });
-            }
-          } catch (error) {
-            isActive = false;
-            await chrome.storage.local.set({ extensionActive: false });
-          }
-        }
 
         setState((prev) => ({
           ...prev,
-          activeMode: mode, // Always show the selected mode
+          activeMode: mode, // Show the selected mode (null if none selected)
           selectedIcon: icon,
-          isExtensionActive: isActive, // Track the ON/OFF state separately
           isLoading: false,
         }));
       } catch (error) {
@@ -161,7 +127,9 @@ export const Popup: React.FC = () => {
     };
   }, []);
 
-  const handleModeSelect = async (mode: 'snap' | 'annotate' | 'transcribe') => {
+  const handleModeSelect = async (
+    mode: 'snap' | 'annotate' | 'transcribe' | null
+  ) => {
     setState((prev) => ({
       ...prev,
       activeMode: mode,
@@ -175,9 +143,10 @@ export const Popup: React.FC = () => {
       console.error('Failed to save mode selection:', error);
     }
 
-    // If extension is currently active, update the mode immediately
-    if (state.isExtensionActive) {
-      try {
+    // Activate or deactivate extension based on mode selection
+    try {
+      if (mode) {
+        // Activate extension with selected mode
         const response = await chrome.runtime.sendMessage({
           type: 'ACTIVATE_EXTENSION',
           data: {
@@ -187,16 +156,25 @@ export const Popup: React.FC = () => {
         });
 
         if (!response.success) {
-          throw new Error(response.error || 'Failed to update mode');
+          throw new Error(response.error || 'Failed to activate extension');
         }
-      } catch (error) {
-        setState((prev) => ({
-          ...prev,
-          error: `Failed to update mode: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`,
-        }));
+      } else {
+        // Deactivate extension when no mode is selected
+        const response = await chrome.runtime.sendMessage({
+          type: 'DEACTIVATE_EXTENSION',
+        });
+
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to deactivate extension');
+        }
       }
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        error: `Failed to ${mode ? 'activate' : 'deactivate'} extension: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      }));
     }
   };
 
@@ -210,8 +188,8 @@ export const Popup: React.FC = () => {
     try {
       await chrome.storage.local.set({ selectedIcon: icon });
 
-      // If extension is currently active, update the mode with new icon
-      if (state.isExtensionActive) {
+      // If extension is currently active (has a mode selected), update with new icon
+      if (state.activeMode) {
         const response = await chrome.runtime.sendMessage({
           type: 'ACTIVATE_EXTENSION',
           data: {
@@ -229,59 +207,6 @@ export const Popup: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to save icon selection:', error);
-    }
-  };
-
-  const handleToggleExtension = async (enabled: boolean) => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
-
-    try {
-      if (enabled) {
-        // If turning on, use the selected mode
-        const mode = state.activeMode;
-
-        // Send message to background script to activate extension
-        const response = await chrome.runtime.sendMessage({
-          type: 'ACTIVATE_EXTENSION',
-          data: {
-            mode,
-            selectedIcon: state.selectedIcon,
-          },
-        });
-
-        if (response.success) {
-          setState((prev) => ({
-            ...prev,
-            isExtensionActive: true,
-            isLoading: false,
-          }));
-        } else {
-          throw new Error(response.error || 'Failed to activate extension');
-        }
-      } else {
-        // Send message to background script to deactivate extension
-        const response = await chrome.runtime.sendMessage({
-          type: 'DEACTIVATE_EXTENSION',
-        });
-
-        if (response.success) {
-          setState((prev) => ({
-            ...prev,
-            isExtensionActive: false,
-            isLoading: false,
-          }));
-        } else {
-          throw new Error(response.error || 'Failed to deactivate extension');
-        }
-      }
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: `Failed to ${enabled ? 'activate' : 'deactivate'} extension: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
-      }));
     }
   };
 
@@ -312,7 +237,9 @@ export const Popup: React.FC = () => {
             className={`mode-button snap-button ${
               state.activeMode === 'snap' ? 'active' : ''
             }`}
-            onClick={() => handleModeSelect('snap')}
+            onClick={() =>
+              handleModeSelect(state.activeMode === 'snap' ? null : 'snap')
+            }
             disabled={state.isLoading}
           >
             <div className='mode-icon'>{TabIcons.Snap}</div>
@@ -323,7 +250,11 @@ export const Popup: React.FC = () => {
             className={`mode-button annotate-button ${
               state.activeMode === 'annotate' ? 'active' : ''
             }`}
-            onClick={() => handleModeSelect('annotate')}
+            onClick={() =>
+              handleModeSelect(
+                state.activeMode === 'annotate' ? null : 'annotate'
+              )
+            }
             disabled={state.isLoading}
           >
             <div className='mode-icon'>{TabIcons.Annotate}</div>
@@ -334,7 +265,11 @@ export const Popup: React.FC = () => {
             className={`mode-button transcribe-button ${
               state.activeMode === 'transcribe' ? 'active' : ''
             }`}
-            onClick={() => handleModeSelect('transcribe')}
+            onClick={() =>
+              handleModeSelect(
+                state.activeMode === 'transcribe' ? null : 'transcribe'
+              )
+            }
             disabled={state.isLoading}
           >
             <div className='mode-icon'>{TabIcons.Transcribe}</div>
@@ -384,19 +319,8 @@ export const Popup: React.FC = () => {
         </div>
       </div>
 
-      <div className='toggle-section'>
-        <div className='toggle-container'>
-          <label className='toggle-switch'>
-            <input
-              type='checkbox'
-              checked={state.isExtensionActive}
-              onChange={(e) => handleToggleExtension(e.target.checked)}
-              disabled={state.isLoading}
-            />
-            <span className='toggle-slider'></span>
-          </label>
-        </div>
-        <small className='footer-text'>Alt + Click to Snap</small>
+      <div className='footer-section'>
+        <small className='footer-text'>Alt + Click to capture</small>
       </div>
       {/* <div className='footer-container'>
         <small className='footer-text'>

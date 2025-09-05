@@ -618,7 +618,6 @@ export async function handleActivateExtension(data: {
 
     // Store the current mode and selected icon
     await chrome.storage.local.set({
-      extensionActive: true,
       currentMode: data.mode,
       selectedIcon: data.selectedIcon,
     });
@@ -699,7 +698,6 @@ export async function handleDeactivateExtension(): Promise<{
   try {
     // Store the inactive state
     await chrome.storage.local.set({
-      extensionActive: false,
       currentMode: null,
       selectedIcon: null,
     });
@@ -997,10 +995,9 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
     await chrome.storage.sync.set({ settings: defaultSettings });
 
-    // Set initial extension state to OFF
+    // Set initial extension state to no mode selected
     await chrome.storage.local.set({
-      extensionActive: false,
-      currentMode: 'snap',
+      currentMode: null,
       selectedIcon: 'blue',
     });
 
