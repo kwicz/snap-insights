@@ -668,7 +668,7 @@ export async function handleActivateExtension(data: {
       // Send activation message to content script
       try {
         await chrome.tabs.sendMessage(tab.id, {
-          type: 'ACTIVATE_CAPTURE_MODE',
+          type: 'ACTIVATE_EXTENSION',
           data: { mode: data.mode, selectedIcon: data.selectedIcon },
         });
       } catch (messageError) {
@@ -714,7 +714,7 @@ export async function handleDeactivateExtension(): Promise<{
     if (tab?.id) {
       try {
         await chrome.tabs.sendMessage(tab.id, {
-          type: 'DEACTIVATE_CAPTURE_MODE',
+          type: 'DEACTIVATE_EXTENSION',
         });
       } catch (error) {
         // Content script might not be injected, ignore error

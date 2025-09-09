@@ -14,6 +14,7 @@ export interface CaptureData {
   annotation?: string;
   transcription?: string;
   selectedIcon?: 'light' | 'blue' | 'dark';
+  mode?: string;
 }
 
 export interface CaptureResult {

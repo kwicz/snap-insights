@@ -91,7 +91,7 @@ export class ExtensionLifecycleHandler {
       if (tab?.id) {
         try {
           await chrome.tabs.sendMessage(tab.id, {
-            type: 'DEACTIVATE_CAPTURE_MODE',
+            type: 'DEACTIVATE_EXTENSION',
           });
         } catch (error) {
           // Content script might not be injected, ignore error
@@ -270,7 +270,7 @@ export class ExtensionLifecycleHandler {
   ): Promise<void> {
     try {
       await chrome.tabs.sendMessage(tabId, {
-        type: 'ACTIVATE_CAPTURE_MODE',
+        type: 'ACTIVATE_EXTENSION',
         data: { mode: data.mode, selectedIcon: data.selectedIcon },
       });
       backgroundLogger.debug('Activation message sent to content script');

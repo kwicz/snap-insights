@@ -1,7 +1,12 @@
+import SidebarManager from './sidebar-injector';
+
 // Extension state
 let extensionActive = false;
 let currentMode: 'snap' | 'annotate' | 'transcribe' | 'start' | null = null;
 let selectedIcon: 'light' | 'blue' | 'dark' = 'blue';
+
+// Sidebar instance
+let sidebarManager: SidebarManager | null = null;
 
 // Annotation dialog state
 let currentAnnotationDialog: HTMLElement | null = null;
@@ -605,6 +610,12 @@ function showSuccessNotification(message: string): void {
 
 // Show notification
 function showNotification(message: string, type: 'success' | 'error'): void {
+  // Don't show empty messages
+  if (!message || message.trim() === '') {
+    console.warn('Attempted to show empty notification:', { message, type });
+    return;
+  }
+
   const notification = document.createElement('div');
   notification.style.cssText = `
     position: fixed;
@@ -654,7 +665,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true, message: 'Content script is alive!' });
       break;
 
-    case 'ACTIVATE_CAPTURE_MODE':
+    case 'ACTIVATE_EXTENSION':
       extensionActive = true;
       currentMode = message.data.mode || null;
       selectedIcon = message.data.selectedIcon || 'blue';
@@ -665,7 +676,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
       break;
 
-    case 'DEACTIVATE_CAPTURE_MODE':
+    case 'DEACTIVATE_EXTENSION':
       extensionActive = false;
       sendResponse({ success: true });
       break;
@@ -962,6 +973,34 @@ async function captureTranscribedScreenshot(
       showErrorNotification('Screenshot capture error');
     }
   }
+}
+
+// Initialize sidebar - check for existing instance first
+console.log('SnapInsights: Initializing sidebar manager');
+if (!sidebarManager) {
+  // Check if there's already a global instance
+  if (window.snapInsightsSidebarManager) {
+    console.log('SnapInsights: Reusing existing global sidebar manager');
+    sidebarManager = window.snapInsightsSidebarManager;
+  } else {
+    // Check if there's already a sidebar in the DOM from a previous instance
+    const existingSidebar = document.querySelector('.snapinsights-sidebar');
+    if (existingSidebar) {
+      console.log(
+        'SnapInsights: Found existing sidebar in DOM, creating manager to reuse it'
+      );
+    }
+    sidebarManager = new SidebarManager();
+    console.log('SnapInsights: Sidebar manager created');
+  }
+} else {
+  console.log('SnapInsights: Sidebar manager already exists, reusing instance');
+}
+
+// Reset sidebarManager reference if it was removed
+if (sidebarManager && !document.querySelector('.snapinsights-sidebar')) {
+  console.log('SnapInsights: Sidebar was removed, resetting manager reference');
+  sidebarManager = null;
 }
 
 // Add CSS animations

@@ -10,16 +10,25 @@ import { captureService } from './services/capture-service';
 import { getContentMessageService } from '@/shared/services/message-service';
 import { isExtensionContextValid } from '@/shared/utils/context-utils';
 import { contentLogger } from '@/utils/debug-logger';
+import SidebarManager from './sidebar-injector';
+
+// Global reference to prevent multiple instances
+declare global {
+  interface Window {
+    snapInsightsSidebarManager?: SidebarManager;
+  }
+}
 
 /**
  * Main content script class
  */
 class ContentScript {
   private isActive = false;
-  private currentMode: 'snap' | 'annotate' | 'transcribe' = 'snap';
+  private currentMode: 'snap' | 'annotate' | 'transcribe' | 'start' = 'snap';
   private selectedIcon: 'light' | 'blue' | 'dark' = 'blue';
   private clickHandler!: ReturnType<typeof createClickHandler>;
   private messageService = getContentMessageService();
+  private sidebarManager: SidebarManager | null = null;
 
   /**
    * Initialize the content script
@@ -30,6 +39,9 @@ class ContentScript {
 
       // Initialize UI services
       this.initializeUI();
+
+      // Initialize sidebar
+      this.initializeSidebar();
 
       // Setup click handling
       this.setupClickHandler();
@@ -55,6 +67,26 @@ class ContentScript {
   }
 
   /**
+   * Initialize sidebar
+   */
+  private initializeSidebar(): void {
+    try {
+      // Check for existing sidebar manager
+      if (!this.sidebarManager) {
+        if (window.snapInsightsSidebarManager) {
+          this.sidebarManager = window.snapInsightsSidebarManager;
+          contentLogger.debug('Reusing existing sidebar manager');
+        } else {
+          this.sidebarManager = new SidebarManager();
+          contentLogger.debug('Created new sidebar manager');
+        }
+      }
+    } catch (error) {
+      contentLogger.error('Failed to initialize sidebar:', error);
+    }
+  }
+
+  /**
    * Setup click handling
    */
   private setupClickHandler(): void {
@@ -71,6 +103,9 @@ class ContentScript {
         uiService.showClickFeedback(coordinates, this.selectedIcon);
         this.handleTranscribeCapture(coordinates);
       },
+      onJourneyClick: (coordinates, originalEvent) => {
+        this.handleJourneyCapture(coordinates, originalEvent);
+      },
     });
 
     contentLogger.debug('Click handler setup complete');
@@ -85,12 +120,12 @@ class ContentScript {
       sendResponse({ success: true, message: 'Content script is alive!' });
     });
 
-    this.messageService.registerHandler('ACTIVATE_CAPTURE_MODE', (message, sender, sendResponse) => {
+    this.messageService.registerHandler('ACTIVATE_EXTENSION', (message, sender, sendResponse) => {
       this.handleActivation((message as any).data);
       sendResponse({ success: true });
     });
 
-    this.messageService.registerHandler('DEACTIVATE_CAPTURE_MODE', (message, sender, sendResponse) => {
+    this.messageService.registerHandler('DEACTIVATE_EXTENSION', (message, sender, sendResponse) => {
       this.handleDeactivation();
       sendResponse({ success: true });
     });
@@ -101,7 +136,7 @@ class ContentScript {
   /**
    * Handle extension activation
    */
-  private handleActivation(data: { mode: 'snap' | 'annotate' | 'transcribe'; selectedIcon: 'light' | 'blue' | 'dark' }): void {
+  private handleActivation(data: { mode: 'snap' | 'annotate' | 'transcribe' | 'start'; selectedIcon: 'light' | 'blue' | 'dark' }): void {
     this.isActive = true;
     this.currentMode = data.mode || 'snap';
     this.selectedIcon = data.selectedIcon || 'blue';
@@ -162,6 +197,31 @@ class ContentScript {
   }
 
   /**
+   * Handle journey capture - capture screenshot before allowing original action
+   */
+  private async handleJourneyCapture(coordinates: { x: number; y: number }, originalEvent: MouseEvent): Promise<void> {
+    contentLogger.debug('Journey capture requested', { coordinates, mode: this.currentMode });
+    
+    // Always execute original action immediately for journey mode to ensure user experience
+    // Screenshot capture happens in background and doesn't block user interaction
+    setTimeout(() => {
+      this.clickHandler.executeOriginalAction(originalEvent);
+    }, 50);
+    
+    // Try to capture screenshot in background (non-blocking)
+    try {
+      await captureService.captureJourneyScreenshot({
+        coordinates,
+        selectedIcon: this.selectedIcon,
+        mode: 'start',
+      });
+      contentLogger.debug('Journey screenshot completed');
+    } catch (error) {
+      contentLogger.debug('Journey capture failed, but user action proceeded:', error);
+    }
+  }
+
+  /**
    * Check if extension context is valid before processing
    */
   private validateContext(): boolean {
@@ -191,6 +251,9 @@ class ContentScript {
     try {
       // Cleanup click handler
       this.clickHandler?.cleanup();
+
+      // Cleanup sidebar
+      this.sidebarManager?.destroy();
 
       // Cleanup UI services
       uiService.cleanup();

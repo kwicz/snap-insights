@@ -17,17 +17,13 @@
   gap: 6px;
   transition: all var(--transition-base);
   color: white;
-  border-radius: 24px 24px 0 0;
+  border-radius: 14px 14px 0 0;
   position: relative;
 }
 
 .tab-button.active {
   background: white;
   color: var(--primary-600);
-}
-
-.tab-button:not(.active):hover {
-  background: var(--primary-100);
 }
 
 .tab-icon {

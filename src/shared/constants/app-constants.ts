@@ -53,6 +53,7 @@ export const EXTENSION_MODES = {
   SNAP: 'snap',
   ANNOTATE: 'annotate',
   TRANSCRIBE: 'transcribe',
+  JOURNEY: 'start',
 } as const;
 
 export type ExtensionMode =

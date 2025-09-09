@@ -13,7 +13,7 @@ export interface CaptureOptions {
   selectedIcon: 'light' | 'blue' | 'dark';
   annotation?: string;
   transcription?: string;
-  mode: 'snap' | 'annotate' | 'transcribe';
+  mode: 'snap' | 'annotate' | 'transcribe' | 'journey' | 'start';
 }
 
 /**
@@ -163,6 +163,66 @@ export class CaptureService {
     } catch (error) {
       contentLogger.error('Transcribed screenshot capture failed:', error);
       this.handleCaptureError(error);
+    }
+  }
+
+  /**
+   * Capture journey screenshot (for user interaction tracking)
+   */
+  async captureJourneyScreenshot(options: CaptureOptions, onComplete?: () => void): Promise<void> {
+    try {
+      contentLogger.debug('Capturing journey screenshot', options);
+
+      // Check extension context and handle gracefully for journey mode
+      if (!isExtensionContextValid()) {
+        contentLogger.debug('Extension context invalid for journey screenshot, proceeding with original action');
+        // For journey mode, prioritize user experience - allow original action to proceed
+        if (onComplete) onComplete();
+        return;
+      }
+
+      // Use shorter timeout and include mode for journey screenshots
+      const response = await this.messageService.sendToBackground({
+        type: 'CAPTURE_SCREENSHOT',
+        data: {
+          coordinates: options.coordinates,
+          selectedIcon: options.selectedIcon,
+          mode: 'journey',
+        },
+      } as any, { timeout: 2000, retries: 1 });
+
+      if (!response.success || !response.data?.dataUrl) {
+        // For journey mode, don't show error notifications to avoid interrupting flow
+        contentLogger.error('Journey screenshot failed:', response.error);
+        if (onComplete) onComplete();
+        return;
+      }
+
+      // Save screenshot with journey metadata
+      await this.saveScreenshot({
+        dataUrl: response.data.dataUrl,
+        url: window.location.href,
+        timestamp: Date.now(),
+        coordinates: options.coordinates,
+        mode: 'journey',
+        annotation: `User interaction at ${new Date().toLocaleTimeString()}`,
+      });
+
+      // Don't show notification for journey mode to avoid interrupting user flow
+      contentLogger.info('Journey screenshot captured and saved successfully');
+      
+      // Call completion callback to allow original action to proceed
+      if (onComplete) {
+        onComplete();
+      }
+
+    } catch (error) {
+      contentLogger.error('Journey screenshot capture failed:', error);
+      // Still call completion callback even if capture fails
+      if (onComplete) {
+        onComplete();
+      }
+      // Don't show error notification to avoid interrupting user flow
     }
   }
 

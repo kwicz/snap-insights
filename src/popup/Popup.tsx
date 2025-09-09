@@ -111,10 +111,14 @@ export const Popup: React.FC = () => {
         const mode = result.currentMode || null;
         const icon = result.selectedIcon || 'blue';
 
+        // Determine which tab should be active based on the current mode
+        const activeTab = mode === 'start' ? 'journey' : 'moment';
+
         setState((prev) => ({
           ...prev,
           activeMode: mode, // Show the selected mode (null if none selected)
           selectedIcon: icon,
+          activeTab: activeTab, // Set the correct tab based on mode
           isLoading: false,
         }));
       } catch (error) {
@@ -150,6 +154,9 @@ export const Popup: React.FC = () => {
       activeMode: null, // Reset mode when switching tabs
       error: null,
     }));
+
+    // Also clear the stored mode when switching tabs
+    chrome.storage.local.set({ currentMode: null }).catch(console.error);
   };
 
   const handleModeSelect = async (
@@ -360,7 +367,7 @@ export const Popup: React.FC = () => {
         {state.activeTab === 'journey' && (
           <>
             <div className='mode-selection'>
-              <h2 className='section-title'>Choose your mode:</h2>
+              <h2 className='section-title'>Record your journey:</h2>
               <div className='mode-grid'>
                 <button
                   className={`mode-button start-button ${
@@ -430,7 +437,9 @@ export const Popup: React.FC = () => {
       </div>
 
       <div className='footer-section'>
-        <small className='footer-text'>Alt + Click to capture</small>
+        <small className='footer-text'>
+          Snaps will save when you click Pause
+        </small>
       </div>
       {/* <div className='footer-container'>
         <small className='footer-text'>
