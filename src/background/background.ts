@@ -6,6 +6,8 @@ import {
   MarkerColorSettings,
   ActivateExtensionMessage,
   DeactivateExtensionMessage,
+  JourneyState,
+  JourneyScreenshot,
 } from '../types';
 import { ExtensionError } from '../types';
 
@@ -779,6 +781,7 @@ export async function updateBadge(mode: ExtensionMode): Promise<void> {
       title = 'Transcribe Mode';
       break;
     case 'start':
+    case 'journey':
       text = 'J';
       title = 'Journey Mode';
       break;
@@ -791,12 +794,364 @@ export async function updateBadge(mode: ExtensionMode): Promise<void> {
   await chrome.action.setTitle({ title });
 }
 
+/**
+ * Start journey mode recording
+ */
+export async function startJourney(): Promise<{
+  success: boolean;
+  journeyState: JourneyState;
+}> {
+  try {
+    // Check if journey is already active
+    if (journeyState.isActive) {
+      return { success: false, journeyState };
+    }
+
+    // Get current active tab for start URL
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    const startUrl = tab?.url;
+
+    // Initialize journey state
+    journeyState = {
+      isActive: true,
+      screenshots: [],
+      startTime: Date.now(),
+      endTime: undefined,
+      startUrl,
+    };
+
+    // Save to storage
+    await chrome.storage.local.set({ [JOURNEY_STORAGE_KEY]: journeyState });
+
+    // Update badge to show journey mode
+    await updateBadge('journey');
+
+    // Inject content script into active tab
+    console.log('🔧 Starting content script injection...', {
+      tabId: tab?.id,
+      url: tab?.url,
+    });
+
+    if (tab?.id) {
+      // Check if tab URL is valid for injection
+      if (
+        tab.url?.startsWith('chrome://') ||
+        tab.url?.startsWith('chrome-extension://') ||
+        tab.url?.startsWith('edge://') ||
+        tab.url?.startsWith('about:')
+      ) {
+        console.error('❌ Invalid tab URL for injection:', tab.url);
+        throw new Error(
+          `Cannot use Journey Mode on system pages like ${tab.url}. Please navigate to a regular website (like google.com) and try again.`
+        );
+      }
+
+      try {
+        console.log('📥 Injecting content script...');
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content/content.js'],
+        });
+        console.log('✅ Content script injected successfully');
+      } catch (scriptError) {
+        console.error('❌ Content script injection failed:', scriptError);
+        throw scriptError;
+      }
+
+      // Wait a bit for script to load
+      console.log('⏳ Waiting for content script to load...');
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Send start journey message to content script
+      try {
+        console.log('📤 Sending START_JOURNEY message to content script...');
+        await chrome.tabs.sendMessage(tab.id, {
+          type: 'START_JOURNEY',
+          timestamp: Date.now(),
+        });
+        console.log('✅ START_JOURNEY message sent successfully');
+      } catch (messageError) {
+        console.error('❌ Failed to send START_JOURNEY message:', messageError);
+        throw messageError;
+      }
+    } else {
+      console.error('❌ No active tab found');
+      throw new Error('No active tab found');
+    }
+
+    return { success: true, journeyState };
+  } catch (error) {
+    throw new ExtensionError(
+      'Failed to start journey',
+      'operation',
+      'start_journey_error',
+      { originalError: error }
+    );
+  }
+}
+
+/**
+ * Stop journey mode recording
+ */
+export async function stopJourney(): Promise<{
+  success: boolean;
+  journeyState: JourneyState;
+}> {
+  try {
+    if (!journeyState.isActive) {
+      return { success: false, journeyState };
+    }
+
+    // Mark journey as ended
+    journeyState.isActive = false;
+    journeyState.endTime = Date.now();
+
+    // Save to storage
+    await chrome.storage.local.set({ [JOURNEY_STORAGE_KEY]: journeyState });
+
+    // Clear badge
+    await chrome.action.setBadgeText({ text: '' });
+    await chrome.action.setTitle({ title: 'SnapInsights' });
+
+    // Send stop journey message to content script
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    if (tab?.id) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          type: 'STOP_JOURNEY',
+          timestamp: Date.now(),
+        });
+      } catch (messageError) {
+        // Content script might not be injected, ignore error
+        console.warn('Failed to send stop journey message:', messageError);
+      }
+    }
+
+    return { success: true, journeyState };
+  } catch (error) {
+    throw new ExtensionError(
+      'Failed to stop journey',
+      'operation',
+      'stop_journey_error',
+      { originalError: error }
+    );
+  }
+}
+
+/**
+ * Add screenshot to journey collection
+ */
+export async function addJourneyScreenshot(
+  screenshotData: ScreenshotData,
+  elementInfo?: {
+    tagName: string;
+    className?: string;
+    id?: string;
+    textContent?: string;
+  }
+): Promise<{ success: boolean; journeyState: JourneyState }> {
+  try {
+    if (!journeyState.isActive) {
+      return { success: false, journeyState };
+    }
+
+    // Check if we've hit the maximum limit
+    if (journeyState.screenshots.length >= MAX_JOURNEY_SCREENSHOTS) {
+      throw new ExtensionError(
+        'Maximum journey screenshots reached',
+        'validation',
+        'max_screenshots_reached'
+      );
+    }
+
+    // Create journey screenshot
+    const journeyScreenshot: JourneyScreenshot = {
+      id: `journey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      dataUrl: screenshotData.dataUrl,
+      url: screenshotData.url,
+      timestamp: screenshotData.timestamp,
+      coordinates: screenshotData.coordinates,
+      sequence: journeyState.screenshots.length + 1,
+      elementInfo,
+      annotation: screenshotData.annotation,
+    };
+
+    // Add to collection
+    journeyState.screenshots.push(journeyScreenshot);
+
+    // Save to storage
+    await chrome.storage.local.set({ [JOURNEY_STORAGE_KEY]: journeyState });
+
+    return { success: true, journeyState };
+  } catch (error) {
+    throw new ExtensionError(
+      'Failed to add journey screenshot',
+      'operation',
+      'add_journey_screenshot_error',
+      { originalError: error }
+    );
+  }
+}
+
+/**
+ * Save journey collection as organized files
+ */
+export async function saveJourneyCollection(): Promise<{
+  success: boolean;
+  downloadIds: number[];
+}> {
+  try {
+    if (journeyState.screenshots.length === 0) {
+      throw new ExtensionError(
+        'No screenshots to save',
+        'validation',
+        'no_screenshots_to_save'
+      );
+    }
+
+    const downloadIds: number[] = [];
+    const timestamp = new Date(journeyState.startTime || Date.now())
+      .toISOString()
+      .replace(/[:.]/g, '-');
+    const folderName = `journey_${timestamp}`;
+
+    // Create journey metadata
+    const metadata = {
+      journeyId: `journey_${journeyState.startTime}`,
+      startTime: journeyState.startTime,
+      endTime: journeyState.endTime,
+      startUrl: journeyState.startUrl,
+      totalScreenshots: journeyState.screenshots.length,
+      screenshots: journeyState.screenshots.map((s) => ({
+        id: s.id,
+        sequence: s.sequence,
+        url: s.url,
+        timestamp: s.timestamp,
+        coordinates: s.coordinates,
+        elementInfo: s.elementInfo,
+        annotation: s.annotation,
+      })),
+    };
+
+    // Save metadata file
+    const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], {
+      type: 'application/json',
+    });
+    const metadataUrl = URL.createObjectURL(metadataBlob);
+    const metadataDownloadId = await chrome.downloads.download({
+      url: metadataUrl,
+      filename: `${folderName}/journey_metadata.json`,
+      saveAs: false,
+    });
+    downloadIds.push(metadataDownloadId);
+
+    // Save each screenshot
+    for (const screenshot of journeyState.screenshots) {
+      const sequence = screenshot.sequence.toString().padStart(3, '0');
+      const filename = `${folderName}/${sequence}_screenshot.png`;
+
+      const downloadId = await chrome.downloads.download({
+        url: screenshot.dataUrl,
+        filename,
+        saveAs: false,
+      });
+      downloadIds.push(downloadId);
+    }
+
+    // Clear journey state after saving
+    journeyState = {
+      isActive: false,
+      screenshots: [],
+      startTime: undefined,
+      endTime: undefined,
+      startUrl: undefined,
+    };
+    await chrome.storage.local.set({ [JOURNEY_STORAGE_KEY]: journeyState });
+
+    return { success: true, downloadIds };
+  } catch (error) {
+    throw new ExtensionError(
+      'Failed to save journey collection',
+      'operation',
+      'save_journey_collection_error',
+      { originalError: error }
+    );
+  }
+}
+
+/**
+ * Get current journey state
+ */
+export async function getJourneyState(): Promise<{
+  journeyState: JourneyState;
+}> {
+  try {
+    // Try to load from storage first
+    const { [JOURNEY_STORAGE_KEY]: storedState } =
+      await chrome.storage.local.get(JOURNEY_STORAGE_KEY);
+    if (storedState) {
+      journeyState = storedState;
+    }
+    return { journeyState };
+  } catch (error) {
+    throw new ExtensionError(
+      'Failed to get journey state',
+      'operation',
+      'get_journey_state_error',
+      { originalError: error }
+    );
+  }
+}
+
+/**
+ * Clear journey state (cleanup)
+ */
+export async function clearJourneyState(): Promise<{ success: boolean }> {
+  try {
+    journeyState = {
+      isActive: false,
+      screenshots: [],
+      startTime: undefined,
+      endTime: undefined,
+      startUrl: undefined,
+    };
+    await chrome.storage.local.remove(JOURNEY_STORAGE_KEY);
+    return { success: true };
+  } catch (error) {
+    throw new ExtensionError(
+      'Failed to clear journey state',
+      'operation',
+      'clear_journey_state_error',
+      { originalError: error }
+    );
+  }
+}
+
 // Keep service worker alive
 const PING_INTERVAL = 20000; // 20 seconds
 
 // Rate limiting for screenshot captures
 let lastCaptureTime = 0;
 const MIN_CAPTURE_INTERVAL = 1000; // 1 second between captures
+
+// Journey mode state management
+let journeyState: JourneyState = {
+  isActive: false,
+  screenshots: [],
+  startTime: undefined,
+  endTime: undefined,
+  startUrl: undefined,
+};
+
+// Journey mode constants
+const MAX_JOURNEY_SCREENSHOTS = 100; // Prevent infinite collections
+const JOURNEY_STORAGE_KEY = 'journeyState';
 
 function keepAlive() {
   // Create an alarm that fires periodically
@@ -835,8 +1190,36 @@ chrome.runtime.onMessage.addListener(
             return true;
           }
 
-          handleScreenshotCapture((message as any).data, sender.tab?.id)
-            .then(sendResponse)
+          const captureData = (message as any).data;
+          const isJourneyMode = captureData?.mode === 'journey';
+
+          handleScreenshotCapture(captureData, sender.tab?.id)
+            .then(async (result) => {
+              // If this is a journey mode screenshot, add it to the collection
+              if (isJourneyMode && result.success && result.dataUrl) {
+                try {
+                  const screenshotData: ScreenshotData = {
+                    dataUrl: result.dataUrl,
+                    url: sender.tab?.url || '',
+                    timestamp: Date.now(),
+                    coordinates: captureData.coordinates || { x: 0, y: 0 },
+                    annotation: captureData.annotation,
+                  };
+
+                  await addJourneyScreenshot(
+                    screenshotData,
+                    captureData.elementInfo
+                  );
+                } catch (journeyError) {
+                  console.error(
+                    'Failed to add journey screenshot:',
+                    journeyError
+                  );
+                  // Don't fail the main capture, just log the error
+                }
+              }
+              sendResponse(result);
+            })
             .catch((error) => {
               console.error('Screenshot capture error:', error);
               // Check if this is a context invalidation error
@@ -928,6 +1311,30 @@ chrome.runtime.onMessage.addListener(
 
       case 'START_CAPTURE':
         handleStartCapture((message as any).data, sender.tab?.id)
+          .then(sendResponse)
+          .catch((error) => sendResponse({ success: false, error }));
+        return true;
+
+      case 'START_JOURNEY':
+        startJourney()
+          .then(sendResponse)
+          .catch((error) => sendResponse({ success: false, error }));
+        return true;
+
+      case 'STOP_JOURNEY':
+        stopJourney()
+          .then(sendResponse)
+          .catch((error) => sendResponse({ success: false, error }));
+        return true;
+
+      case 'SAVE_JOURNEY_COLLECTION':
+        saveJourneyCollection()
+          .then(sendResponse)
+          .catch((error) => sendResponse({ success: false, error }));
+        return true;
+
+      case 'GET_JOURNEY_STATE':
+        getJourneyState()
           .then(sendResponse)
           .catch((error) => sendResponse({ success: false, error }));
         return true;

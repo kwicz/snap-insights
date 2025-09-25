@@ -1,5 +1,7 @@
 import SidebarManager from './sidebar-injector';
 
+console.log('🚀 SnapInsights content script loaded!');
+
 // Extension state
 let extensionActive = false;
 let currentMode: 'snap' | 'annotate' | 'transcribe' | 'start' | null = null;
@@ -48,18 +50,76 @@ function isExtensionContextValid(): boolean {
 
 // Handle click events
 function handleClick(event: MouseEvent): void {
-  // Only handle Alt+Click when extension is active and a mode is selected
+  console.log('🖱️ Click detected', {
+    extensionActive,
+    currentMode,
+    altKey: event.altKey,
+  });
+
+  // Only handle clicks when extension is active and a mode is selected
   if (!extensionActive || !currentMode) {
+    console.log('❌ Extension not active or no mode selected');
     return;
   }
 
-  // Both snap and annotate modes require Alt+Click
+  // Journey mode captures ANY click, other modes require Alt+Click
+  if (currentMode === 'start') {
+    console.log(
+      '🎯 JOURNEY MODE CLICK DETECTED! User clicked on the page while journey mode is active!',
+      {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        target: (event.target as HTMLElement)?.tagName,
+        timestamp: new Date().toISOString(),
+      }
+    );
+
+    // Skip clicks on the extension's own sidebar
+    const target = event.target as HTMLElement;
+    if (target && target.closest('.snapinsights-sidebar')) {
+      console.log('🚫 Skipping click on extension sidebar');
+      return;
+    }
+
+    // Prevent the original action temporarily
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Get coordinates for screenshot
+    const coordinates = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+
+    // Capture screenshot in background
+    captureJourneyScreenshot(coordinates);
+
+    // Execute the original action after a short delay
+    setTimeout(() => {
+      const newEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        button: event.button,
+        buttons: event.buttons,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+      });
+      target.dispatchEvent(newEvent);
+    }, 50);
+
+    return;
+  }
+
+  // Other modes require Alt+Click
   if (!event.altKey) {
     return;
   }
 
   // Use viewport coordinates for both dialog and screenshot
-  // Chrome's captureVisibleTab captures only the visible viewport
   const coordinates = {
     x: event.clientX,
     y: event.clientY,
@@ -81,16 +141,37 @@ function handleClick(event: MouseEvent): void {
       showClickFeedback(coordinates);
       startTranscription(coordinates);
       break;
-
-    case 'start':
-      showClickFeedback(coordinates);
-      // For now, start mode behaves like snap mode
-      captureScreenshot(coordinates);
-      break;
   }
 
   event.preventDefault();
   event.stopPropagation();
+}
+
+// Capture journey screenshot
+async function captureJourneyScreenshot(coordinates: {
+  x: number;
+  y: number;
+}): Promise<void> {
+  try {
+    console.log('📸 Capturing journey screenshot...');
+
+    const response = await chrome.runtime.sendMessage({
+      type: 'CAPTURE_SCREENSHOT',
+      data: {
+        coordinates,
+        selectedIcon,
+        mode: 'journey',
+      },
+    });
+
+    if (response.success) {
+      console.log('✅ Journey screenshot captured successfully');
+    } else {
+      console.error('❌ Journey screenshot failed:', response.error);
+    }
+  } catch (error) {
+    console.error('❌ Journey screenshot error:', error);
+  }
 }
 
 // Show visual feedback at click location
@@ -102,374 +183,46 @@ function showClickFeedback(coordinates: { x: number; y: number }): void {
     top: ${coordinates.y - 32}px;
     width: 64px;
     height: 64px;
-    z-index: 999999;
     pointer-events: none;
-    animation: pulse 0.6s ease-out;
+    z-index: 999999;
+    background-image: url('${chrome.runtime.getURL(
+      `assets/icons/touchpoint-${selectedIcon}.png`
+    )}');
+    background-size: contain;
+    background-repeat: no-repeat;
+    animation: fadeInOut 1s ease-in-out;
   `;
 
-  // Add touchpoint icon
-  const iconImg = document.createElement('img');
-
-  // Check if extension context is valid before getting URL
-  if (isExtensionContextValid()) {
-    iconImg.src = chrome.runtime.getURL(
-      `assets/icons/touchpoint-${selectedIcon}.png`
-    );
-  } else {
-    // Fallback: create a simple colored circle if extension context is invalid
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.beginPath();
-      ctx.arc(32, 32, 24, 0, 2 * Math.PI);
-
-      // Use proper colors for each icon type
-      let fillColor = '#0277C0'; // default blue
-      if (selectedIcon === 'light') {
-        fillColor = '#f8fafc'; // light gray/white
-      } else if (selectedIcon === 'dark') {
-        fillColor = '#1e293b'; // dark gray
+  // Add CSS animation if not already present
+  if (!document.querySelector('#insight-clip-animations')) {
+    const style = document.createElement('style');
+    style.id = 'insight-clip-animations';
+    style.textContent = `
+      @keyframes fadeInOut {
+        0% { opacity: 0; transform: scale(0.5); }
+        50% { opacity: 1; transform: scale(1.1); }
+        100% { opacity: 0; transform: scale(1); }
       }
-
-      ctx.fillStyle = fillColor;
-      ctx.fill();
-      ctx.strokeStyle = selectedIcon === 'light' ? '#64748b' : '#ffffff';
-      ctx.lineWidth = 4;
-      ctx.stroke();
-    }
-    iconImg.src = canvas.toDataURL();
+    `;
+    document.head.appendChild(style);
   }
-
-  iconImg.style.cssText = 'width: 64px; height: 64px; display: block;';
-  marker.appendChild(iconImg);
 
   document.body.appendChild(marker);
 
-  // Remove after animation
+  // Remove marker after animation
   setTimeout(() => {
     if (marker.parentNode) {
       marker.parentNode.removeChild(marker);
     }
-  }, 600);
+  }, 1000);
 }
 
-// Create recording indicator component
-function createRecordingIndicator(): HTMLElement {
-  const recordingIndicator = document.createElement('div');
-  recordingIndicator.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  `;
-
-  const recordingDot = document.createElement('div');
-  recordingDot.style.cssText = `
-    width: 12px;
-    height: 12px;
-    background: #ef4444;
-    border-radius: 50%;
-    animation: pulse 1.5s ease-in-out infinite;
-  `;
-
-  const recordingText = document.createElement('span');
-  recordingText.textContent = 'Recording...';
-  recordingText.style.cssText = `
-    font-size: 12px;
-    color: #ef4444;
-    font-weight: 500;
-  `;
-
-  recordingIndicator.appendChild(recordingDot);
-  recordingIndicator.appendChild(recordingText);
-
-  return recordingIndicator;
-}
-
-// Generic dialog creation function
-function createInputDialog(config: {
-  coordinates: { x: number; y: number };
-  title: string;
-  placeholder: string;
-  buttonText: string;
-  headerBackground?: string;
-  onCapture: (
-    text: string,
-    coordinates: { x: number; y: number }
-  ) => Promise<void>;
-  onClose?: () => void;
-  showRecordingIndicator?: boolean;
-  textDisplay?: HTMLElement;
-}): HTMLElement {
-  const displayCoordinates = {
-    x: Math.min(config.coordinates.x + 20, window.innerWidth - 320),
-    y: Math.max(config.coordinates.y - 10, 10),
-  };
-
-  // Create dialog container
-  const dialog = document.createElement('div');
-  dialog.className = 'insight-clip-input-dialog';
-  dialog.style.cssText = `
-    position: fixed;
-    left: ${displayCoordinates.x}px;
-    top: ${displayCoordinates.y}px;
-    width: 300px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    z-index: 999999;
-    font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 14px;
-    padding: 0;
-    overflow: hidden;
-  `;
-
-  // Create header
-  const header = document.createElement('div');
-  header.style.cssText = `
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px 12px 20px;
-    border-bottom: 1px solid #f3f4f6;
-    background: ${config.headerBackground || '#dfedff'};
-  `;
-
-  // Create header elements
-  const title = document.createElement('h3');
-  title.textContent = config.title;
-  title.style.cssText = `
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
-  `;
-
-  const closeButton = document.createElement('button');
-  closeButton.innerHTML = '&times;';
-  closeButton.style.cssText = `
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: #6b7280;
-    cursor: pointer;
-    padding: 0;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-  `;
-
-  // Assemble header in correct order
-  header.appendChild(title);
-  if (config.showRecordingIndicator) {
-    header.appendChild(createRecordingIndicator());
-  }
-  header.appendChild(closeButton);
-
-  // Create content area
-  const content = document.createElement('div');
-  content.style.cssText = `padding: 20px;`;
-
-  // Create input element (textarea or display div)
-  let inputElement: HTMLElement;
-  if (config.textDisplay) {
-    // Use provided display element for transcription
-    inputElement = config.textDisplay;
-  } else {
-    // Create textarea for annotation
-    const textarea = document.createElement('textarea');
-    textarea.placeholder = config.placeholder;
-    textarea.style.cssText = `
-      width: 100%;
-      height: 80px;
-      border: 1px solid #d1d5db;
-      border-radius: 12px;
-      padding: 12px;
-      font-family: inherit;
-      font-size: 14px;
-      color: #1f2937;
-      resize: vertical;
-      min-height: 60px;
-      max-height: 200px;
-      outline: none;
-      transition: border-color 0.2s;
-      box-sizing: border-box;
-      margin-bottom: 16px;
-    `;
-    textarea.onfocus = () => (textarea.style.borderColor = '#3b82f6');
-    textarea.onblur = () => (textarea.style.borderColor = '#d1d5db');
-    inputElement = textarea;
-  }
-
-  // Create capture button
-  const captureButton = document.createElement('button');
-  captureButton.textContent = config.buttonText;
-  captureButton.style.cssText = `
-    width: 100%;
-    background: #0277c0;
-    color: white;
-    border: none;
-    border-radius: 12px;
-    padding: 12px 16px;
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  `;
-  captureButton.onmouseover = () =>
-    (captureButton.style.backgroundColor = '#004e7e');
-  captureButton.onmouseout = () =>
-    (captureButton.style.backgroundColor = '#0277c0');
-
-  // Assemble dialog
-  content.appendChild(inputElement);
-  content.appendChild(captureButton);
-  dialog.appendChild(header);
-  dialog.appendChild(content);
-
-  // Event handlers
-  const cleanup = () => {
-    if (config.onClose) config.onClose();
-    if (dialog.parentNode) {
-      dialog.remove();
-    }
-  };
-
-  closeButton.onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    cleanup();
-  };
-
-  captureButton.onclick = async () => {
-    let text = '';
-    if (inputElement instanceof HTMLTextAreaElement) {
-      text = inputElement.value.trim();
-      if (!text) {
-        inputElement.focus();
-        inputElement.style.borderColor = '#ef4444';
-        setTimeout(() => (inputElement.style.borderColor = '#d1d5db'), 2000);
-        return;
-      }
-    } else {
-      // For transcription, get text from global variable
-      text = transcriptionText.trim();
-      if (!text) {
-        showErrorNotification('No transcription text to save');
-        return;
-      }
-
-      // For transcription: Set flag and clear dialog reference FIRST
-      isManualStop = true;
-      currentTranscriptionDialog = null;
-
-      // Clear the display content to prevent race condition updates
-      if (config.textDisplay) {
-        config.textDisplay.textContent = '';
-      }
-
-      // Remove dialog immediately
-      dialog.remove();
-
-      // THEN stop transcription services
-      stopTranscription();
-
-      // Wait for cleanup
-      await new Promise((resolve) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setTimeout(resolve, 50);
-          });
-        });
-      });
-    }
-
-    // For annotation case, remove dialog here
-    if (inputElement instanceof HTMLTextAreaElement) {
-      dialog.remove();
-      await new Promise((resolve) => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setTimeout(resolve, 50);
-          });
-        });
-      });
-    }
-
-    // Call the capture handler
-    await config.onCapture(text, config.coordinates);
-  };
-
-  return dialog;
-}
-
-// Show annotation dialog at click location
-function showAnnotationDialog(captureCoordinates: {
-  x: number;
-  y: number;
-}): void {
-  // Remove any existing dialog
-  if (currentAnnotationDialog) {
-    currentAnnotationDialog.remove();
-    currentAnnotationDialog = null;
-  }
-
-  const dialog = createInputDialog({
-    coordinates: captureCoordinates,
-    title: 'Add Annotation',
-    placeholder: 'Enter your annotation...',
-    buttonText: 'Capture',
-    onCapture: async (text, coords) => {
-      await captureAnnotatedScreenshot(coords, text);
-    },
-    onClose: () => {
-      currentAnnotationDialog = null;
-      document.removeEventListener('click', handleOutsideClick, true);
-    },
-  });
-
-  // Add outside click handling (annotation-specific)
-  const handleOutsideClick = (event: MouseEvent) => {
-    if (!dialog.contains(event.target as Node)) {
-      dialog.remove();
-      currentAnnotationDialog = null;
-      document.removeEventListener('click', handleOutsideClick, true);
-    }
-  };
-
-  document.body.appendChild(dialog);
-  currentAnnotationDialog = dialog;
-
-  // Focus textarea
-  const textarea = dialog.querySelector('textarea');
-  if (textarea) setTimeout(() => textarea.focus(), 100);
-
-  setTimeout(() => {
-    document.addEventListener('click', handleOutsideClick, true);
-  }, 200);
-}
-
-// Simple screenshot capture
+// Capture screenshot
 async function captureScreenshot(coordinates: {
   x: number;
   y: number;
 }): Promise<void> {
   try {
-    // Check if extension context is still valid
-    if (!isExtensionContextValid()) {
-      showErrorNotification(
-        'Extension needs to be reloaded. Please refresh the page.'
-      );
-      return;
-    }
-
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
       data: {
@@ -479,174 +232,136 @@ async function captureScreenshot(coordinates: {
     });
 
     if (response.success && response.dataUrl) {
-      // Check context again before saving
-      if (!isExtensionContextValid()) {
-        showErrorNotification(
-          'Extension context lost during save. Please refresh the page.'
-        );
-        return;
-      }
-
       // Save screenshot
-      const saveResponse = await chrome.runtime.sendMessage({
+      await chrome.runtime.sendMessage({
         type: 'SAVE_SCREENSHOT',
         data: {
           dataUrl: response.dataUrl,
           url: window.location.href,
           timestamp: Date.now(),
           coordinates,
-          mode: currentMode,
         },
       });
-
-      if (saveResponse.downloadId) {
-        showSuccessNotification('Screenshot saved successfully!');
-      }
-    } else {
-      showErrorNotification('Failed to capture screenshot');
     }
   } catch (error) {
-    // Check if this is a context invalidation error
-    if (
-      error instanceof Error &&
-      (error.message.includes('Extension context invalidated') ||
-        error.message.includes('Could not establish connection') ||
-        error.message.includes(
-          'The message port closed before a response was received'
-        ))
-    ) {
-      showErrorNotification(
-        'Extension context lost. Please refresh the page and try again.'
-      );
-      // Deactivate extension to prevent further errors
-      extensionActive = false;
-    } else {
-      showErrorNotification('Screenshot capture error');
-    }
+    console.error('Screenshot capture failed:', error);
   }
+}
+
+// Show annotation dialog
+function showAnnotationDialog(coordinates: { x: number; y: number }): void {
+  // Remove any existing dialog
+  if (currentAnnotationDialog) {
+    currentAnnotationDialog.remove();
+  }
+
+  const dialog = document.createElement('div');
+  dialog.className = 'insight-clip-input-dialog';
+  dialog.style.cssText = `
+    position: fixed;
+    left: ${Math.min(coordinates.x + 20, window.innerWidth - 320)}px;
+    top: ${Math.min(coordinates.y + 20, window.innerHeight - 200)}px;
+    width: 300px;
+    min-height: 200px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    z-index: 999999;
+    font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+  `;
+
+  dialog.innerHTML = `
+    <div style="padding: 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #1f2937;">Add Annotation</h3>
+      <button id="close-dialog" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6b7280;">&times;</button>
+    </div>
+    <div style="padding: 20px; flex: 1;">
+      <textarea 
+        id="annotation-text" 
+        placeholder="Enter your annotation here..." 
+        style="width: 100%; height: 100px; border: 1px solid #d1d5db; border-radius: 6px; padding: 12px; font-family: inherit; font-size: 14px; resize: vertical; outline: none;"
+      ></textarea>
+    </div>
+    <div style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: flex-end;">
+      <button id="cancel-annotation" style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer; font-family: inherit;">Cancel</button>
+      <button id="save-annotation" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit;">Save</button>
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+  currentAnnotationDialog = dialog;
+
+  // Focus textarea
+  const textarea = dialog.querySelector(
+    '#annotation-text'
+  ) as HTMLTextAreaElement;
+  textarea.focus();
+
+  // Event listeners
+  dialog.querySelector('#close-dialog')?.addEventListener('click', () => {
+    dialog.remove();
+    currentAnnotationDialog = null;
+  });
+
+  dialog.querySelector('#cancel-annotation')?.addEventListener('click', () => {
+    dialog.remove();
+    currentAnnotationDialog = null;
+  });
+
+  dialog.querySelector('#save-annotation')?.addEventListener('click', () => {
+    const text = textarea.value.trim();
+    if (text) {
+      captureScreenshotWithAnnotation(coordinates, text);
+    }
+    dialog.remove();
+    currentAnnotationDialog = null;
+  });
+
+  // Close on escape key
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      dialog.remove();
+      currentAnnotationDialog = null;
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  };
+  document.addEventListener('keydown', handleKeyDown);
 }
 
 // Capture screenshot with annotation
-async function captureAnnotatedScreenshot(
+async function captureScreenshotWithAnnotation(
   coordinates: { x: number; y: number },
-  annotationText: string
+  annotation: string
 ): Promise<void> {
   try {
-    // Check if extension context is still valid
-    if (!isExtensionContextValid()) {
-      showErrorNotification(
-        'Extension needs to be reloaded. Please refresh the page.'
-      );
-      return;
-    }
-
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
       data: {
         coordinates,
         selectedIcon,
-        annotation: annotationText,
+        annotation,
       },
     });
 
     if (response.success && response.dataUrl) {
-      // Check context again before saving
-      if (!isExtensionContextValid()) {
-        showErrorNotification(
-          'Extension context lost during save. Please refresh the page.'
-        );
-        return;
-      }
-
-      // Save screenshot
-      const saveResponse = await chrome.runtime.sendMessage({
+      // Save screenshot with annotation
+      await chrome.runtime.sendMessage({
         type: 'SAVE_SCREENSHOT',
         data: {
           dataUrl: response.dataUrl,
           url: window.location.href,
           timestamp: Date.now(),
           coordinates,
-          mode: currentMode,
-          annotation: annotationText,
+          annotation,
         },
       });
-
-      if (saveResponse.downloadId) {
-        showSuccessNotification('Annotated screenshot saved successfully!');
-      }
-    } else {
-      showErrorNotification('Failed to capture screenshot');
     }
   } catch (error) {
-    // Check if this is a context invalidation error
-    if (
-      error instanceof Error &&
-      (error.message.includes('Extension context invalidated') ||
-        error.message.includes('Could not establish connection') ||
-        error.message.includes(
-          'The message port closed before a response was received'
-        ))
-    ) {
-      showErrorNotification(
-        'Extension context lost. Please refresh the page and try again.'
-      );
-      // Deactivate extension to prevent further errors
-      extensionActive = false;
-    } else {
-      showErrorNotification('Screenshot capture error');
-    }
+    console.error('Screenshot capture with annotation failed:', error);
   }
-}
-
-// Show error notification
-function showErrorNotification(message: string): void {
-  showNotification(message, 'error');
-}
-
-// Show success notification
-function showSuccessNotification(message: string): void {
-  showNotification(message, 'success');
-}
-
-// Show notification
-function showNotification(message: string, type: 'success' | 'error'): void {
-  // Don't show empty messages
-  if (!message || message.trim() === '') {
-    console.warn('Attempted to show empty notification:', { message, type });
-    return;
-  }
-
-  const notification = document.createElement('div');
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 12px 16px;
-    border-radius: 8px;
-    color: white;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    z-index: 999999;
-    pointer-events: none;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    animation: slideIn 0.3s ease-out;
-    background-color: ${type === 'success' ? '#10b981' : '#ef4444'};
-  `;
-
-  notification.textContent = message;
-  document.body.appendChild(notification);
-
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.style.animation = 'slideOut 0.3s ease-in';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
-    }
-  }, 3000);
 }
 
 // Add click listener
@@ -654,6 +369,8 @@ document.addEventListener('click', handleClick, true);
 
 // Handle messages from popup/background
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('📨 Content script received message:', message.type);
+
   // Check if extension context is valid before processing messages
   if (!isExtensionContextValid()) {
     sendResponse({ error: 'Extension context invalidated' });
@@ -681,6 +398,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
       break;
 
+    case 'START_JOURNEY':
+      console.log('📨 Received START_JOURNEY message in content script');
+      extensionActive = true;
+      currentMode = 'start';
+      selectedIcon = 'blue';
+
+      // Load the font when journey mode starts
+      loadLeagueSpartanFont();
+
+      console.log('🎯 Journey mode started successfully');
+      sendResponse({ success: true });
+      break;
+
+    case 'STOP_JOURNEY':
+      console.log('📨 Received STOP_JOURNEY message in content script');
+      extensionActive = false;
+      currentMode = null;
+      console.log('🎯 Journey mode stopped');
+      sendResponse({ success: true });
+      break;
+
     default:
       sendResponse({ error: 'Unknown message type' });
   }
@@ -703,280 +441,207 @@ async function showTranscriptionDialog(captureCoordinates: {
   if (currentTranscriptionDialog) {
     stopTranscription();
     currentTranscriptionDialog.remove();
-    currentTranscriptionDialog = null;
   }
 
-  // Reset transcription text
-  transcriptionText = '';
-
-  // Request new stream
-  let stream: MediaStream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        sampleRate: 16000,
-      },
-    });
-    currentMediaStream = stream;
-  } catch (error: any) {
-    if (error.name === 'NotAllowedError') {
-      showErrorNotification(
-        'Microphone access denied. Please allow microphone access and try again.'
-      );
-    } else if (error.name === 'NotFoundError') {
-      showErrorNotification(
-        'No microphone found. Please check your audio device.'
-      );
-    } else {
-      showErrorNotification('Failed to access microphone: ' + error.message);
-    }
-    return;
-  }
-
-  // Create transcription display
-  const transcriptionDisplay = document.createElement('div');
-  transcriptionDisplay.style.cssText = `
-    min-height: 100px;
-    max-height: 200px;
-    border: 1px solid #d1d5db;
+  const dialog = document.createElement('div');
+  dialog.className = 'insight-clip-input-dialog';
+  dialog.style.cssText = `
+    position: fixed;
+    left: ${Math.min(captureCoordinates.x + 20, window.innerWidth - 320)}px;
+    top: ${Math.min(captureCoordinates.y + 20, window.innerHeight - 200)}px;
+    width: 300px;
+    min-height: 200px;
+    background: white;
+    border: 1px solid #e5e7eb;
     border-radius: 12px;
-    padding: 12px;
-    background: #f9fafb;
-    font-size: 14px;
-    color: #1f2937;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    line-height: 1.5;
-    margin-bottom: 16px;  /* Added to match annotation textarea spacing */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    z-index: 999999;
+    font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
   `;
-  transcriptionDisplay.textContent = 'Start speaking...';
 
-  const dialog = createInputDialog({
-    coordinates: captureCoordinates,
-    title: 'Transcription',
-    placeholder: '',
-    buttonText: 'Capture',
-    showRecordingIndicator: true,
-    textDisplay: transcriptionDisplay,
-    onCapture: async (text, coords) => {
-      await captureTranscribedScreenshot(coords, text);
-    },
-    onClose: () => {
-      isManualStop = true;
-      stopTranscription();
-      currentTranscriptionDialog = null;
-    },
-  });
+  dialog.innerHTML = `
+    <div style="padding: 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #1f2937;">Voice Transcription</h3>
+      <button id="close-transcription-dialog" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6b7280;">&times;</button>
+    </div>
+    <div style="padding: 20px; flex: 1;">
+      <div id="transcription-status" style="text-align: center; margin-bottom: 20px; color: #6b7280;">
+        Click the microphone to start recording
+      </div>
+      <div id="transcription-controls" style="text-align: center;">
+        <button id="start-recording" style="padding: 12px 24px; background: #ef4444; color: white; border: none; border-radius: 50px; cursor: pointer; font-family: inherit; font-size: 16px; display: flex; align-items: center; gap: 8px; margin: 0 auto;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+          </svg>
+          Start Recording
+        </button>
+        <button id="stop-recording" style="padding: 12px 24px; background: #6b7280; color: white; border: none; border-radius: 50px; cursor: pointer; font-family: inherit; font-size: 16px; display: none; align-items: center; gap: 8px; margin: 0 auto;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12" rx="2"/>
+          </svg>
+          Stop Recording
+        </button>
+      </div>
+      <div id="transcription-text-display" style="margin-top: 20px; padding: 12px; background: #f9fafb; border-radius: 6px; min-height: 60px; font-size: 14px; color: #374151; white-space: pre-wrap;"></div>
+    </div>
+    <div style="padding: 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: flex-end;">
+      <button id="cancel-transcription" style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer; font-family: inherit;">Cancel</button>
+      <button id="save-transcription" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit;">Save</button>
+    </div>
+  `;
 
   document.body.appendChild(dialog);
   currentTranscriptionDialog = dialog;
 
-  // Start transcription services
-  startWebSpeechRecognition(transcriptionDisplay, stream);
-  startMediaRecorder(stream); // Backup audio recording
-}
+  // Event listeners
+  const startButton = dialog.querySelector(
+    '#start-recording'
+  ) as HTMLButtonElement;
+  const stopButton = dialog.querySelector(
+    '#stop-recording'
+  ) as HTMLButtonElement;
+  const statusDiv = dialog.querySelector(
+    '#transcription-status'
+  ) as HTMLDivElement;
+  const textDisplay = dialog.querySelector(
+    '#transcription-text-display'
+  ) as HTMLDivElement;
 
-// Web Speech API implementation
-function startWebSpeechRecognition(
-  display: HTMLElement,
-  stream: MediaStream
-): void {
-  // Stop any existing recognition before starting new one
-  if (currentRecognition) {
-    currentRecognition.stop();
-    currentRecognition = null;
-  }
+  startButton.addEventListener('click', async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      currentMediaStream = stream;
 
-  // if (!('webkitSpeechRecognition' in window)) {
-  //   showErrorNotification('Speech recognition not supported in this browser');
-  //   return;
-  // }
+      const mediaRecorder = new MediaRecorder(stream);
+      currentMediaRecorder = mediaRecorder;
 
-  isManualStop = false; // Reset flag for new session
+      const audioChunks: Blob[] = [];
 
-  const recognition = new (window as any).webkitSpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
-  recognition.maxAlternatives = 1;
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
 
-  let finalTranscript = '';
-  let startTime = Date.now();
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(audioBlob);
 
-  recognition.onstart = () => {
-    display.textContent = 'Listening...';
-  };
+        // For now, just show the audio URL
+        textDisplay.textContent = `Audio recorded: ${audioUrl}`;
+        transcriptionText = textDisplay.textContent;
 
-  recognition.onresult = (event: any) => {
-    let interimTranscript = '';
+        // Clean up
+        stream.getTracks().forEach((track) => track.stop());
+      };
 
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcript = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        finalTranscript += transcript + ' ';
-      } else {
-        interimTranscript += transcript;
-      }
+      mediaRecorder.start();
+
+      startButton.style.display = 'none';
+      stopButton.style.display = 'flex';
+      statusDiv.textContent = 'Recording... Click stop when finished';
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      statusDiv.textContent = 'Error: Could not access microphone';
     }
-
-    transcriptionText = finalTranscript + interimTranscript;
-    display.textContent = transcriptionText || 'Listening...';
-
-    // Auto-scroll to bottom
-    display.scrollTop = display.scrollHeight;
-  };
-
-  recognition.onerror = (event: any) => {
-    console.error('Speech recognition error:', event.error);
-    if (event.error === 'aborted') {
-      return; // Don't auto-restart on abort
-    }
-    if (event.error === 'no-speech') {
-      display.textContent =
-        finalTranscript + '\n[No speech detected - continue speaking]';
-    }
-  };
-
-  recognition.onend = () => {
-    if (
-      currentTranscriptionDialog &&
-      currentTranscriptionDialog.parentNode &&
-      !isManualStop
-    ) {
-      currentTranscriptionDialog.remove();
-      stopTranscription();
-      currentTranscriptionDialog = null;
-    }
-  };
-
-  currentRecognition = recognition;
-  recognition.start();
-}
-
-// MediaRecorder for audio backup
-function startMediaRecorder(stream: MediaStream): void {
-  if (!MediaRecorder.isTypeSupported('audio/webm')) {
-    console.warn('MediaRecorder not supported');
-    return;
-  }
-
-  const recorder = new MediaRecorder(stream, {
-    mimeType: 'audio/webm',
-    audioBitsPerSecond: 128000,
   });
 
-  const audioChunks: Blob[] = [];
+  stopButton.addEventListener('click', () => {
+    if (currentMediaRecorder && currentMediaRecorder.state === 'recording') {
+      currentMediaRecorder.stop();
+      stopButton.style.display = 'none';
+      startButton.style.display = 'flex';
+      statusDiv.textContent = 'Recording stopped. Click save to continue.';
+    }
+  });
 
-  recorder.ondataavailable = (event) => {
-    if (event.data.size > 0) {
-      audioChunks.push(event.data);
+  dialog
+    .querySelector('#close-transcription-dialog')
+    ?.addEventListener('click', () => {
+      stopTranscription();
+      dialog.remove();
+      currentTranscriptionDialog = null;
+    });
+
+  dialog
+    .querySelector('#cancel-transcription')
+    ?.addEventListener('click', () => {
+      stopTranscription();
+      dialog.remove();
+      currentTranscriptionDialog = null;
+    });
+
+  dialog.querySelector('#save-transcription')?.addEventListener('click', () => {
+    if (transcriptionText) {
+      captureScreenshotWithTranscription(captureCoordinates, transcriptionText);
+    }
+    stopTranscription();
+    dialog.remove();
+    currentTranscriptionDialog = null;
+  });
+
+  // Close on escape key
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      stopTranscription();
+      dialog.remove();
+      currentTranscriptionDialog = null;
+      document.removeEventListener('keydown', handleKeyDown);
     }
   };
-
-  recorder.onstop = () => {
-    // Audio blob available if needed for future enhancements
-    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-    console.log('Audio recorded:', audioBlob.size, 'bytes');
-  };
-
-  currentMediaRecorder = recorder;
-  recorder.start(1000); // Collect data every second
+  document.addEventListener('keydown', handleKeyDown);
 }
 
-// Stop all transcription services
+// Stop transcription and clean up
 function stopTranscription(): void {
-  isManualStop = true; // Set flag to prevent auto-restart
-
-  if (currentRecognition) {
-    currentRecognition.stop();
-    currentRecognition = null;
-  }
-
   if (currentMediaRecorder && currentMediaRecorder.state === 'recording') {
     currentMediaRecorder.stop();
-    currentMediaRecorder = null;
   }
 
-  // Stop the actual media stream tracks
   if (currentMediaStream) {
-    currentMediaStream
-      .getTracks()
-      .forEach((track: MediaStreamTrack) => track.stop());
+    currentMediaStream.getTracks().forEach((track) => track.stop());
     currentMediaStream = null;
   }
+
+  currentMediaRecorder = null;
+  transcriptionText = '';
 }
 
 // Capture screenshot with transcription
-async function captureTranscribedScreenshot(
+async function captureScreenshotWithTranscription(
   coordinates: { x: number; y: number },
-  transcriptionText: string
+  transcription: string
 ): Promise<void> {
   try {
-    if (!isExtensionContextValid()) {
-      showErrorNotification(
-        'Extension needs to be reloaded. Please refresh the page.'
-      );
-      return;
-    }
-
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
       data: {
         coordinates,
         selectedIcon,
-        transcription: transcriptionText,
+        transcription,
       },
     });
 
     if (response.success && response.dataUrl) {
-      if (!isExtensionContextValid()) {
-        showErrorNotification(
-          'Extension context lost during save. Please refresh the page.'
-        );
-        return;
-      }
-
-      const saveResponse = await chrome.runtime.sendMessage({
+      // Save screenshot with transcription
+      await chrome.runtime.sendMessage({
         type: 'SAVE_SCREENSHOT',
         data: {
           dataUrl: response.dataUrl,
           url: window.location.href,
           timestamp: Date.now(),
           coordinates,
-          mode: currentMode,
-          transcription: transcriptionText,
+          transcription,
         },
       });
-
-      if (saveResponse.downloadId) {
-        showSuccessNotification('Transcribed screenshot saved successfully!');
-      }
-    } else {
-      showErrorNotification('Failed to capture screenshot');
     }
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.message.includes('Extension context invalidated') ||
-        error.message.includes('Could not establish connection') ||
-        error.message.includes(
-          'The message port closed before a response was received'
-        ))
-    ) {
-      showErrorNotification(
-        'Extension context lost. Please refresh the page and try again.'
-      );
-      extensionActive = false;
-    } else {
-      showErrorNotification('Screenshot capture error');
-    }
+    console.error('Screenshot capture with transcription failed:', error);
   }
 }
 
-// Initialize sidebar - check for existing instance first
-console.log('SnapInsights: Initializing sidebar manager');
+// Initialize sidebar manager
 if (!sidebarManager) {
   // Check if there's already a global instance
   if (window.snapInsightsSidebarManager) {
@@ -997,40 +662,16 @@ if (!sidebarManager) {
   console.log('SnapInsights: Sidebar manager already exists, reusing instance');
 }
 
-// Reset sidebarManager reference if it was removed
-if (sidebarManager && !document.querySelector('.snapinsights-sidebar')) {
-  console.log('SnapInsights: Sidebar was removed, resetting manager reference');
-  sidebarManager = null;
-}
+// Make sidebar manager globally available
+window.snapInsightsSidebarManager = sidebarManager;
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  if (currentAnnotationDialog) {
+    currentAnnotationDialog.remove();
   }
-  
-  @keyframes slideIn {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
+  if (currentTranscriptionDialog) {
+    stopTranscription();
+    currentTranscriptionDialog.remove();
   }
-  
-  @keyframes slideOut {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-  }
-`;
-document.head.appendChild(style);
+});

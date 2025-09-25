@@ -178,26 +178,51 @@ export const Popup: React.FC = () => {
     // Activate or deactivate extension based on mode selection
     try {
       if (mode) {
-        // Activate extension with selected mode
-        const response = await chrome.runtime.sendMessage({
-          type: 'ACTIVATE_EXTENSION',
-          data: {
-            mode,
-            selectedIcon: state.selectedIcon,
-          },
-        });
+        if (mode === 'start') {
+          // Start journey mode
+          const response = await chrome.runtime.sendMessage({
+            type: 'START_JOURNEY',
+            timestamp: Date.now(),
+          });
 
-        if (!response.success) {
-          throw new Error(response.error || 'Failed to activate extension');
+          if (!response.success) {
+            throw new Error(response.error || 'Failed to start journey');
+          }
+        } else {
+          // Activate extension with selected mode (snap, annotate, transcribe)
+          const response = await chrome.runtime.sendMessage({
+            type: 'ACTIVATE_EXTENSION',
+            data: {
+              mode,
+              selectedIcon: state.selectedIcon,
+            },
+          });
+
+          if (!response.success) {
+            throw new Error(response.error || 'Failed to activate extension');
+          }
         }
       } else {
-        // Deactivate extension when no mode is selected
-        const response = await chrome.runtime.sendMessage({
-          type: 'DEACTIVATE_EXTENSION',
-        });
+        // Deactivate extension or stop journey
+        if (state.activeMode === 'start') {
+          // Stop journey mode
+          const response = await chrome.runtime.sendMessage({
+            type: 'STOP_JOURNEY',
+            timestamp: Date.now(),
+          });
 
-        if (!response.success) {
-          throw new Error(response.error || 'Failed to deactivate extension');
+          if (!response.success) {
+            throw new Error(response.error || 'Failed to stop journey');
+          }
+        } else {
+          // Deactivate extension
+          const response = await chrome.runtime.sendMessage({
+            type: 'DEACTIVATE_EXTENSION',
+          });
+
+          if (!response.success) {
+            throw new Error(response.error || 'Failed to deactivate extension');
+          }
         }
       }
     } catch (error) {
@@ -239,6 +264,44 @@ export const Popup: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to save icon selection:', error);
+    }
+  };
+
+  const handleSaveJourney = async () => {
+    setState((prev) => ({
+      ...prev,
+      isLoading: true,
+      error: null,
+    }));
+
+    try {
+      // Save journey collection
+      const response = await chrome.runtime.sendMessage({
+        type: 'SAVE_JOURNEY_COLLECTION',
+        timestamp: Date.now(),
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to save journey collection');
+      }
+
+      // Show success message
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: null,
+      }));
+
+      // Optionally show a success notification
+      console.log('Journey collection saved successfully!');
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: `Failed to save journey: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      }));
     }
   };
 
@@ -389,6 +452,17 @@ export const Popup: React.FC = () => {
                     {state.activeMode === 'start' ? 'Pause' : 'Start'}
                   </span>
                 </button>
+
+                {state.activeMode === 'start' && (
+                  <button
+                    className='mode-button save-button'
+                    onClick={handleSaveJourney}
+                    disabled={state.isLoading}
+                  >
+                    <div className='mode-icon'>{TabIcons.Save}</div>
+                    <span className='mode-label'>Save Journey</span>
+                  </button>
+                )}
               </div>
             </div>
 

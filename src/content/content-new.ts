@@ -50,7 +50,6 @@ class ContentScript {
       this.setupMessageHandling();
 
       contentLogger.info('Content script initialized successfully');
-
     } catch (error) {
       contentLogger.error('Failed to initialize content script:', error);
     }
@@ -62,7 +61,7 @@ class ContentScript {
   private initializeUI(): void {
     // Inject CSS animations
     uiService.injectAnimations();
-    
+
     contentLogger.debug('UI services initialized');
   }
 
@@ -116,19 +115,45 @@ class ContentScript {
    */
   private setupMessageHandling(): void {
     // Register message handlers
-    this.messageService.registerHandler('PING' as any, (message, sender, sendResponse) => {
-      sendResponse({ success: true, message: 'Content script is alive!' });
-    });
+    this.messageService.registerHandler(
+      'PING' as any,
+      (message, sender, sendResponse) => {
+        sendResponse({ success: true, message: 'Content script is alive!' });
+      }
+    );
 
-    this.messageService.registerHandler('ACTIVATE_EXTENSION', (message, sender, sendResponse) => {
-      this.handleActivation((message as any).data);
-      sendResponse({ success: true });
-    });
+    this.messageService.registerHandler(
+      'ACTIVATE_EXTENSION',
+      (message, sender, sendResponse) => {
+        this.handleActivation((message as any).data);
+        sendResponse({ success: true });
+      }
+    );
 
-    this.messageService.registerHandler('DEACTIVATE_EXTENSION', (message, sender, sendResponse) => {
-      this.handleDeactivation();
-      sendResponse({ success: true });
-    });
+    this.messageService.registerHandler(
+      'DEACTIVATE_EXTENSION',
+      (message, sender, sendResponse) => {
+        this.handleDeactivation();
+        sendResponse({ success: true });
+      }
+    );
+
+    this.messageService.registerHandler(
+      'START_JOURNEY',
+      (message, sender, sendResponse) => {
+        console.log('📨 Received START_JOURNEY message in content script');
+        this.handleJourneyStart();
+        sendResponse({ success: true });
+      }
+    );
+
+    this.messageService.registerHandler(
+      'STOP_JOURNEY',
+      (message, sender, sendResponse) => {
+        this.handleJourneyStop();
+        sendResponse({ success: true });
+      }
+    );
 
     contentLogger.debug('Message handling setup complete');
   }
@@ -136,7 +161,10 @@ class ContentScript {
   /**
    * Handle extension activation
    */
-  private handleActivation(data: { mode: 'snap' | 'annotate' | 'transcribe' | 'start'; selectedIcon: 'light' | 'blue' | 'dark' }): void {
+  private handleActivation(data: {
+    mode: 'snap' | 'annotate' | 'transcribe' | 'start';
+    selectedIcon: 'light' | 'blue' | 'dark';
+  }): void {
     this.isActive = true;
     this.currentMode = data.mode || 'snap';
     this.selectedIcon = data.selectedIcon || 'blue';
@@ -147,7 +175,15 @@ class ContentScript {
     // Activate click handler
     this.clickHandler.activate(this.currentMode);
 
-    contentLogger.info('Extension activated', { mode: this.currentMode, icon: this.selectedIcon });
+    // Show journey progress indicator if in journey mode
+    if (this.currentMode === 'start') {
+      uiService.showJourneyProgressIndicator(0);
+    }
+
+    contentLogger.info('Extension activated', {
+      mode: this.currentMode,
+      icon: this.selectedIcon,
+    });
   }
 
   /**
@@ -155,9 +191,12 @@ class ContentScript {
    */
   private handleDeactivation(): void {
     this.isActive = false;
-    
+
     // Deactivate click handler
     this.clickHandler.deactivate();
+
+    // Hide journey progress indicator
+    uiService.hideJourneyProgressIndicator();
 
     // Dismiss any active notifications
     notificationManager.dismissAll();
@@ -166,9 +205,53 @@ class ContentScript {
   }
 
   /**
+   * Handle journey mode start
+   */
+  private handleJourneyStart(): void {
+    console.log('🎯 Journey mode starting...');
+    this.isActive = true;
+    this.currentMode = 'start';
+    this.selectedIcon = 'blue'; // Default icon for journey mode
+
+    // Load the font when journey mode starts
+    uiService.loadFont();
+
+    // Activate click handler for journey mode
+    this.clickHandler.activate(this.currentMode);
+
+    // Show journey progress indicator
+    uiService.showJourneyProgressIndicator(0);
+
+    console.log('✅ Journey mode started successfully');
+    contentLogger.info('Journey mode started');
+  }
+
+  /**
+   * Handle journey mode stop
+   */
+  private handleJourneyStop(): void {
+    this.isActive = false;
+    this.currentMode = 'snap';
+
+    // Deactivate click handler
+    this.clickHandler.deactivate();
+
+    // Hide journey progress indicator
+    uiService.hideJourneyProgressIndicator();
+
+    // Dismiss any active notifications
+    notificationManager.dismissAll();
+
+    contentLogger.info('Journey mode stopped');
+  }
+
+  /**
    * Handle snap capture
    */
-  private async handleSnapCapture(coordinates: { x: number; y: number }): Promise<void> {
+  private async handleSnapCapture(coordinates: {
+    x: number;
+    y: number;
+  }): Promise<void> {
     await captureService.captureScreenshot({
       coordinates,
       selectedIcon: this.selectedIcon,
@@ -183,7 +266,9 @@ class ContentScript {
     // TODO: Show annotation dialog
     // This will be implemented in the next iteration with dialog modules
     contentLogger.debug('Annotation capture requested', coordinates);
-    notificationManager.showInfo('Annotation dialog will be implemented in next iteration');
+    notificationManager.showInfo(
+      'Annotation dialog will be implemented in next iteration'
+    );
   }
 
   /**
@@ -193,21 +278,29 @@ class ContentScript {
     // TODO: Show transcription dialog
     // This will be implemented in the next iteration with dialog modules
     contentLogger.debug('Transcription capture requested', coordinates);
-    notificationManager.showInfo('Transcription dialog will be implemented in next iteration');
+    notificationManager.showInfo(
+      'Transcription dialog will be implemented in next iteration'
+    );
   }
 
   /**
    * Handle journey capture - capture screenshot before allowing original action
    */
-  private async handleJourneyCapture(coordinates: { x: number; y: number }, originalEvent: MouseEvent): Promise<void> {
-    contentLogger.debug('Journey capture requested', { coordinates, mode: this.currentMode });
-    
+  private async handleJourneyCapture(
+    coordinates: { x: number; y: number },
+    originalEvent: MouseEvent
+  ): Promise<void> {
+    contentLogger.debug('Journey capture requested', {
+      coordinates,
+      mode: this.currentMode,
+    });
+
     // Always execute original action immediately for journey mode to ensure user experience
     // Screenshot capture happens in background and doesn't block user interaction
     setTimeout(() => {
       this.clickHandler.executeOriginalAction(originalEvent);
     }, 50);
-    
+
     // Try to capture screenshot in background (non-blocking)
     try {
       await captureService.captureJourneyScreenshot({
@@ -216,8 +309,35 @@ class ContentScript {
         mode: 'start',
       });
       contentLogger.debug('Journey screenshot completed');
+
+      // Update journey progress indicator
+      this.updateJourneyProgress();
     } catch (error) {
-      contentLogger.debug('Journey capture failed, but user action proceeded:', error);
+      contentLogger.debug(
+        'Journey capture failed, but user action proceeded:',
+        error
+      );
+    }
+  }
+
+  /**
+   * Update journey progress indicator
+   */
+  private async updateJourneyProgress(): Promise<void> {
+    try {
+      // Get current journey state from background script
+      const response = await this.messageService.sendToBackground({
+        type: 'GET_JOURNEY_STATE',
+        timestamp: Date.now(),
+      } as any);
+
+      if (response.success && response.data?.journeyState) {
+        const screenshotCount =
+          response.data.journeyState.screenshots?.length || 0;
+        uiService.updateJourneyProgressIndicator(screenshotCount);
+      }
+    } catch (error) {
+      contentLogger.debug('Failed to update journey progress:', error);
     }
   }
 
@@ -226,7 +346,9 @@ class ContentScript {
    */
   private validateContext(): boolean {
     if (!isExtensionContextValid()) {
-      notificationManager.showError('Extension context invalidated. Please refresh the page.');
+      notificationManager.showError(
+        'Extension context invalidated. Please refresh the page.'
+      );
       this.isActive = false;
       return false;
     }
@@ -262,9 +384,8 @@ class ContentScript {
       notificationManager.cleanup();
 
       this.isActive = false;
-      
-      contentLogger.info('Content script cleanup completed');
 
+      contentLogger.info('Content script cleanup completed');
     } catch (error) {
       contentLogger.error('Content script cleanup failed:', error);
     }

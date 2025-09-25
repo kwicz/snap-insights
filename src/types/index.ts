@@ -139,9 +139,60 @@ export interface AnnotationData {
 }
 
 /**
+ * Journey mode screenshot data
+ */
+export interface JourneyScreenshot {
+  /** Unique identifier for this screenshot */
+  id: string;
+  /** Base64 encoded image data */
+  dataUrl: string;
+  /** URL of the page where screenshot was taken */
+  url: string;
+  /** Timestamp when screenshot was taken */
+  timestamp: number;
+  /** Click coordinates */
+  coordinates: {
+    x: number;
+    y: number;
+  };
+  /** Sequence number in the journey */
+  sequence: number;
+  /** Element information that was clicked */
+  elementInfo?: {
+    tagName: string;
+    className?: string;
+    id?: string;
+    textContent?: string;
+  };
+  /** Optional annotation */
+  annotation?: string;
+}
+
+/**
+ * Journey mode state
+ */
+export interface JourneyState {
+  /** Whether journey mode is currently active */
+  isActive: boolean;
+  /** Array of screenshots captured during the journey */
+  screenshots: JourneyScreenshot[];
+  /** Timestamp when journey started */
+  startTime?: number;
+  /** Timestamp when journey ended */
+  endTime?: number;
+  /** Current page URL when journey started */
+  startUrl?: string;
+}
+
+/**
  * Extension operation mode
  */
-export type ExtensionMode = 'snap' | 'annotate' | 'transcribe' | 'start';
+export type ExtensionMode =
+  | 'snap'
+  | 'annotate'
+  | 'transcribe'
+  | 'start'
+  | 'journey';
 
 /**
  * Error categories for better error handling

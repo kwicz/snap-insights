@@ -10,7 +10,10 @@ export interface ClickHandlerConfig {
   onSnapClick: (coordinates: { x: number; y: number }) => void;
   onAnnotateClick: (coordinates: { x: number; y: number }) => void;
   onTranscribeClick: (coordinates: { x: number; y: number }) => void;
-  onJourneyClick: (coordinates: { x: number; y: number }, originalEvent: MouseEvent) => void;
+  onJourneyClick: (
+    coordinates: { x: number; y: number },
+    originalEvent: MouseEvent
+  ) => void;
 }
 
 /**
@@ -69,13 +72,27 @@ export class ClickHandler {
    * Handle click events
    */
   private handleClick(event: MouseEvent): void {
+    console.log('🖱️ Click detected', {
+      isActive: this.isActive,
+      currentMode: this.currentMode,
+      isJourneyMode: this.currentMode === EXTENSION_MODES.JOURNEY,
+    });
+
     // Only handle clicks when extension is active
     if (!this.isActive) {
+      console.log('❌ Extension not active, ignoring click');
       return;
     }
 
     // Journey mode captures ANY click, other modes require Alt+Click
+    console.log('🔍 Mode check:', {
+      currentMode: this.currentMode,
+      EXTENSION_MODES_JOURNEY: EXTENSION_MODES.JOURNEY,
+      isMatch: this.currentMode === EXTENSION_MODES.JOURNEY,
+    });
+
     if (this.currentMode === EXTENSION_MODES.JOURNEY) {
+      console.log('🎯 Journey mode click - processing...');
       // For journey mode, capture screenshot before allowing the original action
       this.handleJourneyClick(event);
       return;
@@ -86,10 +103,10 @@ export class ClickHandler {
       return;
     }
 
-    contentLogger.debug('Alt+Click detected', { 
+    contentLogger.debug('Alt+Click detected', {
       mode: this.currentMode,
       clientX: event.clientX,
-      clientY: event.clientY 
+      clientY: event.clientY,
     });
 
     // Use viewport coordinates for both dialog and screenshot
@@ -135,16 +152,27 @@ export class ClickHandler {
    * Handle journey mode clicks - capture screenshot before allowing original action
    */
   private handleJourneyClick(event: MouseEvent): void {
+    console.log(
+      '🎯 JOURNEY MODE CLICK DETECTED! User clicked on the page while journey mode is active!',
+      {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        target: (event.target as HTMLElement)?.tagName,
+        timestamp: new Date().toISOString(),
+      }
+    );
+
     // Skip clicks on the extension's own sidebar
     const target = event.target as HTMLElement;
     if (target && target.closest('.snapinsights-sidebar')) {
+      console.log('🚫 Skipping click on extension sidebar');
       return;
     }
 
-    contentLogger.debug('Journey click detected', { 
+    contentLogger.debug('Journey click detected', {
       clientX: event.clientX,
       clientY: event.clientY,
-      target: target?.tagName
+      target: target?.tagName,
     });
 
     // Prevent the original action temporarily
@@ -174,7 +202,7 @@ export class ClickHandler {
    */
   public executeOriginalAction(originalEvent: MouseEvent): void {
     const target = originalEvent.target as HTMLElement;
-    
+
     // Re-dispatch the click event to allow the original action
     setTimeout(() => {
       if (target) {
@@ -189,15 +217,15 @@ export class ClickHandler {
           ctrlKey: originalEvent.ctrlKey,
           shiftKey: originalEvent.shiftKey,
           altKey: originalEvent.altKey,
-          metaKey: originalEvent.metaKey
+          metaKey: originalEvent.metaKey,
         });
 
         // Temporarily disable our click handler to avoid infinite loop
         const wasActive = this.isActive;
         this.isActive = false;
-        
+
         target.dispatchEvent(newEvent);
-        
+
         // Re-enable our click handler
         this.isActive = wasActive;
       }

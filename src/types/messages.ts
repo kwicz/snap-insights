@@ -41,7 +41,14 @@ export type MessageType =
   | 'RESET_SETTINGS'
   // Error handling
   | 'ERROR_OCCURRED'
-  | 'CLEAR_ERROR';
+  | 'CLEAR_ERROR'
+  // Journey mode operations
+  | 'START_JOURNEY'
+  | 'STOP_JOURNEY'
+  | 'SAVE_JOURNEY_COLLECTION'
+  | 'GET_JOURNEY_STATE'
+  | 'JOURNEY_SCREENSHOT_ADDED'
+  | 'JOURNEY_STATE_UPDATED';
 
 /**
  * Base message interface
@@ -175,6 +182,43 @@ export interface ClearErrorMessage extends BaseMessage {
 }
 
 /**
+ * Journey mode messages
+ */
+export interface StartJourneyMessage extends BaseMessage {
+  type: 'START_JOURNEY';
+}
+
+export interface StopJourneyMessage extends BaseMessage {
+  type: 'STOP_JOURNEY';
+}
+
+export interface SaveJourneyCollectionMessage extends BaseMessage {
+  type: 'SAVE_JOURNEY_COLLECTION';
+}
+
+export interface GetJourneyStateMessage extends BaseMessage {
+  type: 'GET_JOURNEY_STATE';
+}
+
+export interface JourneyScreenshotAddedMessage extends BaseMessage {
+  type: 'JOURNEY_SCREENSHOT_ADDED';
+  data: {
+    screenshotId: string;
+    sequence: number;
+    totalScreenshots: number;
+  };
+}
+
+export interface JourneyStateUpdatedMessage extends BaseMessage {
+  type: 'JOURNEY_STATE_UPDATED';
+  data: {
+    isActive: boolean;
+    screenshotCount: number;
+    startTime?: number;
+  };
+}
+
+/**
  * Screenshot trigger message
  */
 export interface TriggerScreenshotModeMessage extends BaseMessage {
@@ -264,7 +308,13 @@ export type ExtensionMessage =
   | ActivateExtensionMessage
   | DeactivateExtensionMessage
   | ActivateCaptureModeMessage
-  | DeactivateCaptureModeMessage;
+  | DeactivateCaptureModeMessage
+  | StartJourneyMessage
+  | StopJourneyMessage
+  | SaveJourneyCollectionMessage
+  | GetJourneyStateMessage
+  | JourneyScreenshotAddedMessage
+  | JourneyStateUpdatedMessage;
 
 /**
  * Message handler type
