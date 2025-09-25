@@ -26,6 +26,7 @@ export const STORAGE_KEYS = {
   SCREENSHOTS: 'screenshots',
   STATS: 'stats',
   EXTENSION_STATE: 'extensionState',
+  EXTENSION_ACTIVE: 'extensionActive',
   CURRENT_MODE: 'currentMode',
   SELECTED_ICON: 'selectedIcon',
 } as const;

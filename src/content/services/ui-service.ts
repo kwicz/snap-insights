@@ -72,12 +72,18 @@ export class UIService {
     const iconImg = document.createElement('img');
 
     // Check if extension context is valid before getting URL
-    if (isExtensionContextValid()) {
-      iconImg.src = chrome.runtime.getURL(
-        `assets/icons/touchpoint-${selectedIcon}.png`
-      );
-    } else {
-      // Fallback: create a simple colored circle if extension context is invalid
+    try {
+      if (isExtensionContextValid()) {
+        iconImg.src = chrome.runtime.getURL(
+          `assets/icons/touchpoint-${selectedIcon}.png`
+        );
+      } else {
+        // Fallback: create a simple colored circle if extension context is invalid
+        iconImg.src = this.createFallbackIcon(selectedIcon);
+      }
+    } catch (error) {
+      // Fallback: create a simple colored circle if extension context throws error
+      contentLogger.warn('Extension context invalid, using fallback icon:', error);
       iconImg.src = this.createFallbackIcon(selectedIcon);
     }
 
@@ -228,8 +234,11 @@ export class UIService {
    * Show journey progress indicator
    */
   showJourneyProgressIndicator(screenshotCount: number = 0): void {
-    // Remove existing indicator if any
-    this.hideJourneyProgressIndicator();
+    // Remove existing indicator if any (immediate removal for synchronous behavior)
+    const existingIndicator = document.getElementById('snapinsights-journey-indicator');
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
 
     const indicator = this.createJourneyProgressIndicator(screenshotCount);
     document.body.appendChild(indicator);
@@ -247,7 +256,9 @@ export class UIService {
     if (indicator) {
       indicator.style.animation = 'slideOut 0.3s ease-out';
       setTimeout(() => {
-        indicator.remove();
+        if (indicator.parentNode) {
+          indicator.remove();
+        }
       }, 300);
     }
   }

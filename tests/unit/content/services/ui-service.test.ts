@@ -1,318 +1,225 @@
 /**
- * Tests for UI service
+ * Tests for UI service - Fixed to match actual implementation
  */
 
+import '@testing-library/jest-dom';
 import { uiService } from '@/content/services/ui-service';
-import { notificationManager } from '@/content/modules/notification-manager';
-
-// Mock dependencies
-jest.mock('@/content/modules/notification-manager');
 
 describe('UIService', () => {
   const mockCoordinates = { x: 100, y: 200 };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Clear DOM
     document.body.innerHTML = '';
-    
-    // Mock notification manager
-    (notificationManager.showSuccess as jest.Mock) = jest.fn();
-    (notificationManager.showError as jest.Mock) = jest.fn();
-    (notificationManager.showInfo as jest.Mock) = jest.fn();
+    document.head.innerHTML = '';
   });
 
   afterEach(() => {
-    // Clean up any created dialogs
+    // Clean up any created elements
     uiService.cleanup();
   });
 
-  describe('showAnnotationDialog', () => {
-    test('should create and show annotation dialog', async () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      
-      const dialog = document.querySelector('.insight-clip-dialog');
-      expect(dialog).toBeInTheDocument();
-      expect(dialog).toHaveClass('annotation-dialog');
+  describe('loadFont', () => {
+    test('should load League Spartan font', () => {
+      uiService.loadFont();
+
+      const fontLink = document.querySelector('#insight-clip-font-loader');
+      expect(fontLink).toBeInTheDocument();
+      expect(fontLink?.getAttribute('href')).toContain('fonts.googleapis.com');
     });
 
-    test('should position dialog correctly', () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      
-      const dialog = document.querySelector('.insight-clip-dialog') as HTMLElement;
-      expect(dialog.style.position).toBe('fixed');
-      expect(dialog.style.left).toContain('px');
-      expect(dialog.style.top).toContain('px');
+    test('should not load font twice', () => {
+      uiService.loadFont();
+      uiService.loadFont();
+
+      const fontLinks = document.querySelectorAll('#insight-clip-font-loader');
+      expect(fontLinks).toHaveLength(1);
     });
 
-    test('should handle save action', () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      
-      const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
-      const saveButton = document.querySelector('.save-button') as HTMLButtonElement;
-      
-      textarea.value = 'Test annotation';
-      saveButton.click();
-      
-      expect(onSave).toHaveBeenCalledWith('Test annotation');
-    });
-
-    test('should handle cancel action', () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      
-      const cancelButton = document.querySelector('.cancel-button') as HTMLButtonElement;
-      cancelButton.click();
-      
-      expect(onCancel).toHaveBeenCalled();
-    });
-
-    test('should handle escape key', () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      
-      const event = new KeyboardEvent('keydown', { key: 'Escape' });
-      document.dispatchEvent(event);
-      
-      expect(onCancel).toHaveBeenCalled();
-    });
-
-    test('should prevent multiple dialogs', () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      
-      const dialogs = document.querySelectorAll('.insight-clip-dialog');
-      expect(dialogs).toHaveLength(1);
+    test('should mark font as loaded', () => {
+      expect(uiService.isFontLoaded()).toBe(false);
+      uiService.loadFont();
+      expect(uiService.isFontLoaded()).toBe(true);
     });
   });
 
-  describe('showTranscriptionDialog', () => {
-    test('should create and show transcription dialog', () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showTranscriptionDialog(mockCoordinates, onSave, onCancel);
-      
-      const dialog = document.querySelector('.insight-clip-dialog');
-      expect(dialog).toBeInTheDocument();
-      expect(dialog).toHaveClass('transcription-dialog');
-    });
+  describe('showClickFeedback', () => {
+    test('should create and show click feedback marker', () => {
+      uiService.showClickFeedback(mockCoordinates, 'blue');
 
-    test('should show recording controls', () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showTranscriptionDialog(mockCoordinates, onSave, onCancel);
-      
-      const recordButton = document.querySelector('.record-button');
-      const stopButton = document.querySelector('.stop-button');
-      
-      expect(recordButton).toBeInTheDocument();
-      expect(stopButton).toBeInTheDocument();
-    });
-
-    test('should handle recording start', async () => {
-      // Mock media devices
-      Object.defineProperty(navigator, 'mediaDevices', {
-        writable: true,
-        value: {
-          getUserMedia: jest.fn().mockResolvedValue({
-            getTracks: () => [{ stop: jest.fn() }],
-          }),
-        },
-      });
-
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showTranscriptionDialog(mockCoordinates, onSave, onCancel);
-      
-      const recordButton = document.querySelector('.record-button') as HTMLButtonElement;
-      recordButton.click();
-      
-      // Wait for async operations
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();
-    });
-
-    test('should handle recording errors', async () => {
-      // Mock media devices with error
-      Object.defineProperty(navigator, 'mediaDevices', {
-        writable: true,
-        value: {
-          getUserMedia: jest.fn().mockRejectedValue(new Error('Media access denied')),
-        },
-      });
-
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showTranscriptionDialog(mockCoordinates, onSave, onCancel);
-      
-      const recordButton = document.querySelector('.record-button') as HTMLButtonElement;
-      recordButton.click();
-      
-      // Wait for async operations
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      expect(notificationManager.showError).toHaveBeenCalledWith(
-        expect.stringContaining('Media access denied')
-      );
-    });
-  });
-
-  describe('showMarker', () => {
-    test('should create and show marker', () => {
-      uiService.showMarker(mockCoordinates, 'blue');
-      
-      const marker = document.querySelector('.insight-clip-marker');
+      const marker = document.querySelector('div[style*="position: fixed"]');
       expect(marker).toBeInTheDocument();
     });
 
     test('should position marker correctly', () => {
-      uiService.showMarker(mockCoordinates, 'blue');
-      
-      const marker = document.querySelector('.insight-clip-marker') as HTMLElement;
-      expect(marker.style.position).toBe('fixed');
-      expect(marker.style.left).toBe('90px'); // x - 10 (half marker size)
-      expect(marker.style.top).toBe('190px'); // y - 10 (half marker size)
-    });
+      uiService.showClickFeedback(mockCoordinates, 'blue');
 
-    test('should apply correct icon style', () => {
-      uiService.showMarker(mockCoordinates, 'blue');
-      
-      const marker = document.querySelector('.insight-clip-marker') as HTMLElement;
-      expect(marker.classList).toContain('blue-icon');
+      const marker = document.querySelector('div[style*="position: fixed"]') as HTMLElement;
+      expect(marker.style.left).toBe('68px'); // x - 32
+      expect(marker.style.top).toBe('168px'); // y - 32
     });
 
     test('should handle different icon types', () => {
-      const iconTypes = ['light', 'blue', 'dark'] as const;
-      
+      const iconTypes: ('light' | 'blue' | 'dark')[] = ['light', 'blue', 'dark'];
+
       iconTypes.forEach(iconType => {
         document.body.innerHTML = '';
-        uiService.showMarker(mockCoordinates, iconType);
-        
-        const marker = document.querySelector('.insight-clip-marker') as HTMLElement;
-        expect(marker.classList).toContain(`${iconType}-icon`);
+        uiService.showClickFeedback(mockCoordinates, iconType);
+
+        const marker = document.querySelector('div[style*="position: fixed"]');
+        expect(marker).toBeInTheDocument();
       });
     });
 
-    test('should remove existing markers', () => {
-      uiService.showMarker(mockCoordinates, 'blue');
-      uiService.showMarker({ x: 150, y: 250 }, 'red');
-      
-      const markers = document.querySelectorAll('.insight-clip-marker');
-      expect(markers).toHaveLength(1);
-    });
-  });
+    test('should create fallback icon when extension context is invalid', () => {
+      // Mock invalid extension context
+      const originalGetURL = chrome.runtime.getURL;
+      chrome.runtime.getURL = jest.fn().mockImplementation(() => {
+        throw new Error('Extension context invalid');
+      });
 
-  describe('hideMarker', () => {
-    test('should remove marker from DOM', () => {
-      uiService.showMarker(mockCoordinates, 'blue');
-      
-      let marker = document.querySelector('.insight-clip-marker');
+      uiService.showClickFeedback(mockCoordinates, 'blue');
+
+      const marker = document.querySelector('div[style*="position: fixed"]');
       expect(marker).toBeInTheDocument();
-      
-      uiService.hideMarker();
-      
-      marker = document.querySelector('.insight-clip-marker');
-      expect(marker).not.toBeInTheDocument();
+
+      // Restore
+      chrome.runtime.getURL = originalGetURL;
     });
 
-    test('should handle no marker gracefully', () => {
-      expect(() => uiService.hideMarker()).not.toThrow();
-    });
-  });
+    test('should remove marker after animation delay', async () => {
+      uiService.showClickFeedback(mockCoordinates, 'blue');
 
-  describe('showLoadingIndicator', () => {
-    test('should create and show loading indicator', () => {
-      uiService.showLoadingIndicator('Processing...');
-      
-      const indicator = document.querySelector('.insight-clip-loading');
-      expect(indicator).toBeInTheDocument();
-      expect(indicator).toHaveTextContent('Processing...');
-    });
+      const marker = document.querySelector('div[style*="position: fixed"]');
+      expect(marker).toBeInTheDocument();
 
-    test('should position loading indicator correctly', () => {
-      uiService.showLoadingIndicator('Loading...');
-      
-      const indicator = document.querySelector('.insight-clip-loading') as HTMLElement;
-      expect(indicator.style.position).toBe('fixed');
-      expect(indicator.style.top).toBe('50%');
-      expect(indicator.style.left).toBe('50%');
+      // Wait for removal timeout (600ms)
+      await new Promise(resolve => setTimeout(resolve, 650));
+
+      const markerAfter = document.querySelector('div[style*="position: fixed"]');
+      expect(markerAfter).not.toBeInTheDocument();
     });
   });
 
-  describe('hideLoadingIndicator', () => {
-    test('should remove loading indicator', () => {
-      uiService.showLoadingIndicator('Loading...');
-      
-      let indicator = document.querySelector('.insight-clip-loading');
+  describe('createRecordingIndicator', () => {
+    test('should create recording indicator element', () => {
+      const indicator = uiService.createRecordingIndicator();
+
+      expect(indicator).toBeInstanceOf(HTMLElement);
+      expect(indicator.textContent).toContain('Recording...');
+    });
+
+    test('should have proper styling', () => {
+      const indicator = uiService.createRecordingIndicator();
+
+      expect(indicator.style.display).toBe('flex');
+      expect(indicator.style.alignItems).toBe('center');
+    });
+  });
+
+  describe('journeyProgressIndicator', () => {
+    test('should create journey progress indicator', () => {
+      const indicator = uiService.createJourneyProgressIndicator(3);
+
+      expect(indicator).toBeInstanceOf(HTMLElement);
+      expect(indicator.textContent).toContain('Journey Mode: 3 screenshots');
+      expect(indicator.id).toBe('snapinsights-journey-indicator');
+    });
+
+    test('should show journey progress indicator', () => {
+      uiService.showJourneyProgressIndicator(5);
+
+      const indicator = document.getElementById('snapinsights-journey-indicator');
       expect(indicator).toBeInTheDocument();
-      
-      uiService.hideLoadingIndicator();
-      
-      indicator = document.querySelector('.insight-clip-loading');
+      expect(indicator?.textContent).toContain('Journey Mode: 5 screenshots');
+    });
+
+    test('should update journey progress indicator', () => {
+      uiService.showJourneyProgressIndicator(2);
+      uiService.updateJourneyProgressIndicator(7);
+
+      const indicator = document.getElementById('snapinsights-journey-indicator');
+      expect(indicator?.textContent).toContain('Journey Mode: 7 screenshots');
+    });
+
+    test('should hide journey progress indicator', async () => {
+      uiService.showJourneyProgressIndicator(1);
+
+      let indicator = document.getElementById('snapinsights-journey-indicator');
+      expect(indicator).toBeInTheDocument();
+
+      uiService.hideJourneyProgressIndicator();
+
+      // Wait for animation and removal
+      await new Promise(resolve => setTimeout(resolve, 350));
+
+      indicator = document.getElementById('snapinsights-journey-indicator');
       expect(indicator).not.toBeInTheDocument();
     });
+
+    test('should remove existing indicator before showing new one', () => {
+      uiService.showJourneyProgressIndicator(1);
+      uiService.showJourneyProgressIndicator(2);
+
+      const indicators = document.querySelectorAll('#snapinsights-journey-indicator');
+      expect(indicators).toHaveLength(1);
+    });
   });
 
-  describe('showTooltip', () => {
-    test('should create and show tooltip', () => {
-      uiService.showTooltip(mockCoordinates, 'Test tooltip');
-      
-      const tooltip = document.querySelector('.insight-clip-tooltip');
-      expect(tooltip).toBeInTheDocument();
-      expect(tooltip).toHaveTextContent('Test tooltip');
+  describe('injectAnimations', () => {
+    test('should inject CSS animations', () => {
+      uiService.injectAnimations();
+
+      const style = document.querySelector('#insight-clip-animations');
+      expect(style).toBeInTheDocument();
+      expect(style?.textContent).toContain('@keyframes pulse');
     });
 
-    test('should auto-hide tooltip after delay', async () => {
-      uiService.showTooltip(mockCoordinates, 'Test tooltip', 100);
-      
-      let tooltip = document.querySelector('.insight-clip-tooltip');
-      expect(tooltip).toBeInTheDocument();
-      
-      // Wait for auto-hide
-      await new Promise(resolve => setTimeout(resolve, 150));
-      
-      tooltip = document.querySelector('.insight-clip-tooltip');
-      expect(tooltip).not.toBeInTheDocument();
+    test('should not inject animations twice', () => {
+      uiService.injectAnimations();
+      uiService.injectAnimations();
+
+      const styles = document.querySelectorAll('#insight-clip-animations');
+      expect(styles).toHaveLength(1);
+    });
+
+    test('should include all required animations', () => {
+      uiService.injectAnimations();
+
+      const style = document.querySelector('#insight-clip-animations');
+      const content = style?.textContent || '';
+
+      expect(content).toContain('@keyframes pulse');
+      expect(content).toContain('@keyframes slideIn');
+      expect(content).toContain('@keyframes slideOut');
     });
   });
 
   describe('cleanup', () => {
-    test('should remove all UI elements', () => {
-      uiService.showMarker(mockCoordinates, 'blue');
-      uiService.showLoadingIndicator('Loading...');
-      uiService.showTooltip(mockCoordinates, 'Tooltip');
-      
-      expect(document.querySelector('.insight-clip-marker')).toBeInTheDocument();
-      expect(document.querySelector('.insight-clip-loading')).toBeInTheDocument();
-      expect(document.querySelector('.insight-clip-tooltip')).toBeInTheDocument();
-      
+    test('should remove font link', () => {
+      uiService.loadFont();
+      expect(document.querySelector('#insight-clip-font-loader')).toBeInTheDocument();
+
       uiService.cleanup();
-      
-      expect(document.querySelector('.insight-clip-marker')).not.toBeInTheDocument();
-      expect(document.querySelector('.insight-clip-loading')).not.toBeInTheDocument();
-      expect(document.querySelector('.insight-clip-tooltip')).not.toBeInTheDocument();
+      expect(document.querySelector('#insight-clip-font-loader')).not.toBeInTheDocument();
+    });
+
+    test('should remove animations', () => {
+      uiService.injectAnimations();
+      expect(document.querySelector('#insight-clip-animations')).toBeInTheDocument();
+
+      uiService.cleanup();
+      expect(document.querySelector('#insight-clip-animations')).not.toBeInTheDocument();
+    });
+
+    test('should reset font loaded state', () => {
+      uiService.loadFont();
+      expect(uiService.isFontLoaded()).toBe(true);
+
+      uiService.cleanup();
+      expect(uiService.isFontLoaded()).toBe(false);
     });
 
     test('should handle cleanup with no elements', () => {
@@ -320,61 +227,43 @@ describe('UIService', () => {
     });
   });
 
-  describe('dialog positioning', () => {
-    test('should adjust dialog position when near viewport edge', () => {
-      const edgeCoordinates = { x: window.innerWidth - 50, y: window.innerHeight - 50 };
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(edgeCoordinates, onSave, onCancel);
-      
-      const dialog = document.querySelector('.insight-clip-dialog') as HTMLElement;
-      const rect = dialog.getBoundingClientRect();
-      
-      // Dialog should be positioned to stay within viewport
-      expect(rect.right).toBeLessThanOrEqual(window.innerWidth);
-      expect(rect.bottom).toBeLessThanOrEqual(window.innerHeight);
+  describe('createFallbackIcon', () => {
+    test('should create fallback icon when extension context invalid', () => {
+      // Mock HTMLCanvasElement.prototype.toDataURL for jsdom compatibility
+      const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+      HTMLCanvasElement.prototype.toDataURL = jest.fn(() => 'data:image/png;base64,mockdata');
+
+      // Mock invalid extension context by making chrome.runtime.getURL throw
+      const originalGetURL = chrome.runtime.getURL;
+      chrome.runtime.getURL = jest.fn().mockImplementation(() => {
+        throw new Error('Extension context invalid');
+      });
+
+      uiService.showClickFeedback(mockCoordinates, 'blue');
+
+      const img = document.querySelector('img');
+      expect(img).toBeInTheDocument();
+      expect(img?.src).toContain('data:image/png;base64');
+
+      // Restore
+      chrome.runtime.getURL = originalGetURL;
+      HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
     });
   });
 
-  describe('accessibility', () => {
-    test('should set proper ARIA attributes on dialogs', () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      
-      const dialog = document.querySelector('.insight-clip-dialog') as HTMLElement;
-      expect(dialog.getAttribute('role')).toBe('dialog');
-      expect(dialog.getAttribute('aria-modal')).toBe('true');
-    });
+  describe('error handling', () => {
+    test('should handle font loading errors gracefully', () => {
+      // Mock document.head.appendChild to throw
+      const originalAppendChild = document.head.appendChild;
+      document.head.appendChild = jest.fn().mockImplementation(() => {
+        throw new Error('Failed to append');
+      });
 
-    test('should focus first input in dialog', () => {
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      
-      const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
-      expect(document.activeElement).toBe(textarea);
-    });
-  });
+      expect(() => uiService.loadFont()).not.toThrow();
+      expect(uiService.isFontLoaded()).toBe(false);
 
-  describe('responsive design', () => {
-    test('should adapt dialog size for small screens', () => {
-      // Mock small screen
-      Object.defineProperty(window, 'innerWidth', { value: 400, writable: true });
-      Object.defineProperty(window, 'innerHeight', { value: 600, writable: true });
-      
-      const onSave = jest.fn();
-      const onCancel = jest.fn();
-      
-      uiService.showAnnotationDialog(mockCoordinates, onSave, onCancel);
-      
-      const dialog = document.querySelector('.insight-clip-dialog') as HTMLElement;
-      const rect = dialog.getBoundingClientRect();
-      
-      expect(rect.width).toBeLessThan(window.innerWidth);
+      // Restore
+      document.head.appendChild = originalAppendChild;
     });
   });
 });

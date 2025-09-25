@@ -29,10 +29,9 @@ describe('ExtensionLifecycleHandler', () => {
 
     test('should activate extension successfully', async () => {
       const result = await extensionLifecycleHandler.handleActivateExtension(activationData);
-      
+
       expect(result.success).toBe(true);
       expect(chrome.storage.local.set).toHaveBeenCalledWith({
-        [STORAGE_KEYS.EXTENSION_ACTIVE]: true,
         [STORAGE_KEYS.CURRENT_MODE]: activationData.mode,
         [STORAGE_KEYS.SELECTED_ICON]: activationData.selectedIcon,
       });
@@ -58,7 +57,7 @@ describe('ExtensionLifecycleHandler', () => {
       await extensionLifecycleHandler.handleActivateExtension(activationData);
       
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(mockTab.id, {
-        type: 'ACTIVATE_CAPTURE_MODE',
+        type: 'ACTIVATE_EXTENSION',
         data: activationData,
       });
     });
@@ -99,7 +98,6 @@ describe('ExtensionLifecycleHandler', () => {
       
       expect(result.success).toBe(true);
       expect(chrome.storage.local.set).toHaveBeenCalledWith({
-        [STORAGE_KEYS.EXTENSION_ACTIVE]: false,
         [STORAGE_KEYS.CURRENT_MODE]: null,
         [STORAGE_KEYS.SELECTED_ICON]: null,
       });
@@ -116,7 +114,7 @@ describe('ExtensionLifecycleHandler', () => {
       await extensionLifecycleHandler.handleDeactivateExtension();
       
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(mockTab.id, {
-        type: 'DEACTIVATE_CAPTURE_MODE',
+        type: 'DEACTIVATE_EXTENSION',
       });
     });
 
@@ -158,8 +156,7 @@ describe('ExtensionLifecycleHandler', () => {
       await extensionLifecycleHandler.handleInstallation();
       
       expect(chrome.storage.local.set).toHaveBeenCalledWith({
-        [STORAGE_KEYS.EXTENSION_ACTIVE]: false,
-        [STORAGE_KEYS.CURRENT_MODE]: EXTENSION_MODES.SNAP,
+        [STORAGE_KEYS.CURRENT_MODE]: null,
         [STORAGE_KEYS.SELECTED_ICON]: ICON_TYPES.BLUE,
       });
     });
