@@ -156,6 +156,13 @@ async function captureJourneyScreenshot(coordinates: {
   try {
     console.log('📸 Capturing journey screenshot...');
 
+    // Show the snap icon at click location BEFORE taking screenshot
+    // This ensures the icon is visible in the captured image
+    const marker = showPersistentClickFeedback(coordinates);
+
+    // Wait a brief moment for the icon to render
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
       data: {
@@ -165,6 +172,13 @@ async function captureJourneyScreenshot(coordinates: {
       },
     });
 
+    // Remove the icon after screenshot is captured
+    setTimeout(() => {
+      if (marker && marker.parentNode) {
+        marker.parentNode.removeChild(marker);
+      }
+    }, 500); // Keep it visible for a moment after capture
+
     if (response.success) {
       console.log('✅ Journey screenshot captured successfully');
     } else {
@@ -173,6 +187,29 @@ async function captureJourneyScreenshot(coordinates: {
   } catch (error) {
     console.error('❌ Journey screenshot error:', error);
   }
+}
+
+// Show persistent click feedback that returns the marker element
+function showPersistentClickFeedback(coordinates: { x: number; y: number }): HTMLElement {
+  const marker = document.createElement('div');
+  marker.className = 'snapinsights-click-marker';
+  marker.style.cssText = `
+    position: fixed;
+    left: ${coordinates.x - 32}px;
+    top: ${coordinates.y - 32}px;
+    width: 64px;
+    height: 64px;
+    pointer-events: none;
+    z-index: 999999;
+    background-image: url('${chrome.runtime.getURL(
+      `assets/icons/touchpoint-${selectedIcon}.png`
+    )}');
+    background-size: contain;
+    background-repeat: no-repeat;
+  `;
+
+  document.body.appendChild(marker);
+  return marker;
 }
 
 // Show visual feedback at click location

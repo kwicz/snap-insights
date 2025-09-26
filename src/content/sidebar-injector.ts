@@ -471,12 +471,13 @@ class SidebarManager {
         svg.style.stroke = isActive ? '#0277c0' : 'white';
       }
 
-      // Update start/pause icon
+      // Update start/save icon for journey mode
       if (mode === 'start') {
         const iconContainer = button.querySelector('div');
         if (iconContainer) {
+          // When journey mode is active, show save icon instead of pause
           iconContainer.innerHTML = isActive
-            ? this.getPauseIcon()
+            ? this.getSaveIcon()
             : this.getStartIcon();
           const newSvg = iconContainer.querySelector('svg');
           if (newSvg) {
@@ -486,6 +487,11 @@ class SidebarManager {
             newSvg.style.height = '100%';
           }
         }
+
+        // Update button title when active
+        if (isActive) {
+          (button as HTMLElement).title = 'Save Journey';
+        }
       }
     });
   }
@@ -493,6 +499,32 @@ class SidebarManager {
   private async handleModeSelect(
     mode: 'snap' | 'annotate' | 'transcribe' | 'start' | null
   ) {
+    // Special handling for Journey mode
+    if (mode === 'start' && this.state.activeMode === 'start') {
+      // Journey mode is active, clicking the button should save all journey images
+      console.log('SnapInsights: Saving journey...');
+
+      try {
+        // Send message to save all journey screenshots
+        const response = await chrome.runtime.sendMessage({
+          type: 'SAVE_JOURNEY_COLLECTION',
+        });
+
+        if (response?.success) {
+          console.log('Journey saved successfully');
+          // Deactivate journey mode after saving
+          await chrome.storage.local.set({ currentMode: null });
+          await chrome.runtime.sendMessage({ type: 'DEACTIVATE_EXTENSION' });
+        } else {
+          console.error('Failed to save journey:', response?.error);
+        }
+      } catch (error) {
+        console.error('Failed to save journey:', error);
+      }
+      return;
+    }
+
+    // Normal mode toggle behavior for other modes
     const newMode = this.state.activeMode === mode ? null : mode;
 
     // Save to storage to sync with popup
@@ -585,10 +617,15 @@ class SidebarManager {
     </svg>`;
   }
 
-  private getPauseIcon(): string {
+  private getSaveIcon(): string {
     return `<svg viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2"/>
     </svg>`;
+  }
+
+  private getPauseIcon(): string {
+    // Deprecated - keeping for backwards compatibility
+    return this.getSaveIcon();
   }
 
   public destroy() {

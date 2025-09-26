@@ -225,18 +225,42 @@ export class JourneyService {
       const { journeyState } = currentState;
       const downloadIds: number[] = [];
 
-      // Generate base filename with journey info
+      // Generate folder name with journey info and primary domain
       const startDate = new Date(journeyState.startTime || Date.now())
         .toISOString()
         .replace(/[:.]/g, '-')
         .slice(0, -5);
 
-      const baseFilename = `journey_${startDate}`;
+      // Get the primary domain from screenshots
+      const urls = journeyState.screenshots.map(s => s.url).filter(Boolean);
+      const primaryDomain = urls.length > 0
+        ? new URL(urls[0]).hostname.replace(/^www\./, '')
+        : 'journey';
 
-      // Save each screenshot
+      // Create folder name
+      const folderName = `journey_${primaryDomain}_${startDate}`;
+
+      // Save each screenshot with URL-based naming
       for (const screenshot of journeyState.screenshots) {
         try {
-          const filename = `${baseFilename}_${screenshot.sequence.toString().padStart(3, '0')}.png`;
+          // Extract domain from URL for filename
+          let urlPart = 'screenshot';
+          if (screenshot.url) {
+            try {
+              const url = new URL(screenshot.url);
+              urlPart = url.hostname.replace(/^www\./, '').replace(/[^a-zA-Z0-9-]/g, '_');
+            } catch {
+              urlPart = 'screenshot';
+            }
+          }
+
+          // Create filename with URL, timestamp and sequence
+          const timestamp = new Date(screenshot.timestamp)
+            .toISOString()
+            .replace(/[:.]/g, '-')
+            .slice(11, -5); // Get time portion only
+
+          const filename = `${folderName}/${urlPart}_${timestamp}_${screenshot.sequence.toString().padStart(3, '0')}.png`;
 
           const downloadId = await chrome.downloads.download({
             url: screenshot.dataUrl,
@@ -279,7 +303,7 @@ export class JourneyService {
         const metadataUrl = URL.createObjectURL(metadataBlob);
         const metadataDownloadId = await chrome.downloads.download({
           url: metadataUrl,
-          filename: `${baseFilename}_metadata.json`,
+          filename: `${folderName}/journey_metadata.json`,
           saveAs: false,
         });
 
