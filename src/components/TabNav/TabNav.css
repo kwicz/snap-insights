@@ -26,6 +26,12 @@
   color: var(--primary-600);
 }
 
+/* Remove focus-visible outline on active tabs */
+.tab-button.active:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .tab-icon {
   width: 18px;
   height: 18px;

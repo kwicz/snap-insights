@@ -196,15 +196,36 @@ export async function handleActivateExtension(data: {
       selectedIcon: data.selectedIcon,
     });
 
-    // Update badge based on mode
-    if (data.mode === 'journey') {
-      await chrome.action.setBadgeText({ text: 'J' });
-      await chrome.action.setBadgeBackgroundColor({ color: '#2196F3' });
-      await chrome.action.setTitle({ title: 'SnapInsights - Journey Mode' });
-    } else {
-      await chrome.action.setBadgeText({ text: 'S' });
-      await chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' });
-      await chrome.action.setTitle({ title: 'SnapInsights - Snap Mode' });
+    // Update badge based on mode - white background with blue text
+    switch (data.mode) {
+      case 'snap':
+        await chrome.action.setBadgeText({ text: 'S' });
+        await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
+        await chrome.action.setBadgeTextColor({ color: '#3b82f6' });
+        await chrome.action.setTitle({ title: 'SnapInsights - Snap Mode' });
+        break;
+      case 'annotate':
+        await chrome.action.setBadgeText({ text: 'A' });
+        await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
+        await chrome.action.setBadgeTextColor({ color: '#3b82f6' });
+        await chrome.action.setTitle({ title: 'SnapInsights - Annotate Mode' });
+        break;
+      case 'transcribe':
+        await chrome.action.setBadgeText({ text: 'T' });
+        await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
+        await chrome.action.setBadgeTextColor({ color: '#3b82f6' });
+        await chrome.action.setTitle({ title: 'SnapInsights - Transcribe Mode' });
+        break;
+      case 'journey':
+        await chrome.action.setBadgeText({ text: 'J' });
+        await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
+        await chrome.action.setBadgeTextColor({ color: '#3b82f6' });
+        await chrome.action.setTitle({ title: 'SnapInsights - Journey Mode' });
+        break;
+      default:
+        await chrome.action.setBadgeText({ text: '' });
+        await chrome.action.setTitle({ title: 'SnapInsights' });
+        break;
     }
 
     // Inject content script into active tab
@@ -345,9 +366,10 @@ export async function startJourney(): Promise<{
       };
     }
 
-    // Update badge to show journey mode
+    // Update badge to show journey mode - white background with blue text
     await chrome.action.setBadgeText({ text: 'J' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#2196F3' });
+    await chrome.action.setBadgeBackgroundColor({ color: '#FFFFFF' });
+    await chrome.action.setBadgeTextColor({ color: '#3b82f6' });
     await chrome.action.setTitle({ title: 'SnapInsights - Journey Mode Active' });
 
     // Inject content script for journey mode
@@ -371,22 +393,40 @@ export async function startJourney(): Promise<{
       }
 
       try {
-        backgroundLogger.info('Injecting content script for journey mode');
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ['content/content.js'],
-        });
+        // First try to send message to see if content script is already loaded
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            type: 'START_JOURNEY',
+            timestamp: Date.now(),
+          });
+          backgroundLogger.info('Journey mode started - content script already loaded');
+        } catch (error) {
+          // Content script not loaded, inject it first
+          backgroundLogger.info('Content script not loaded, injecting...');
 
-        // Wait for script to load
-        await new Promise((resolve) => setTimeout(resolve, 500));
+          // Check if content script injection is allowed for this tab
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content/content.js'],
+            });
 
-        // Send start journey message to content script
-        await chrome.tabs.sendMessage(tab.id, {
-          type: 'START_JOURNEY',
-          timestamp: Date.now(),
-        });
+            // Wait for script to load
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
+            // Now send the message
+            await chrome.tabs.sendMessage(tab.id, {
+              type: 'START_JOURNEY',
+              timestamp: Date.now(),
+            });
+            backgroundLogger.info('Journey mode started after script injection');
+          } catch (injectionError) {
+            backgroundLogger.error('Failed to inject content script:', injectionError);
+            throw new Error('Failed to start Journey mode. Please refresh the page and try again.');
+          }
+        }
       } catch (messageError) {
-        backgroundLogger.error('Failed to send START_JOURNEY message:', messageError);
+        backgroundLogger.error('Failed to start Journey mode:', messageError);
         throw messageError;
       }
     } else {

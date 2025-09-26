@@ -120,7 +120,8 @@ describe('UIService', () => {
   });
 
   describe('journeyProgressIndicator', () => {
-    test('should create journey progress indicator', () => {
+    // Note: Journey progress UI has been removed from display but methods preserved for future use
+    test('should create journey progress indicator element (not displayed)', () => {
       const indicator = uiService.createJourneyProgressIndicator(3);
 
       expect(indicator).toBeInstanceOf(HTMLElement);
@@ -128,7 +129,9 @@ describe('UIService', () => {
       expect(indicator.id).toBe('snapinsights-journey-indicator');
     });
 
-    test('should show journey progress indicator', () => {
+    test.skip('should show journey progress indicator - REMOVED FROM UI', () => {
+      // Journey progress indicator removed from UI per requirements
+      // Screenshot count is still tracked internally but not displayed
       uiService.showJourneyProgressIndicator(5);
 
       const indicator = document.getElementById('snapinsights-journey-indicator');
@@ -136,7 +139,9 @@ describe('UIService', () => {
       expect(indicator?.textContent).toContain('Journey Mode: 5 screenshots');
     });
 
-    test('should update journey progress indicator', () => {
+    test.skip('should update journey progress indicator - REMOVED FROM UI', () => {
+      // Journey progress indicator removed from UI per requirements
+      // Screenshot count is still tracked internally but not displayed
       uiService.showJourneyProgressIndicator(2);
       uiService.updateJourneyProgressIndicator(7);
 
@@ -144,7 +149,8 @@ describe('UIService', () => {
       expect(indicator?.textContent).toContain('Journey Mode: 7 screenshots');
     });
 
-    test('should hide journey progress indicator', async () => {
+    test.skip('should hide journey progress indicator - REMOVED FROM UI', async () => {
+      // Journey progress indicator removed from UI per requirements
       uiService.showJourneyProgressIndicator(1);
 
       let indicator = document.getElementById('snapinsights-journey-indicator');

@@ -292,15 +292,35 @@ export const Popup: React.FC = () => {
 
     loadExtensionState();
 
+    // Close popup when clicking outside
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // Check if click is outside the popup container
+      if (!target.closest('.popup')) {
+        window.close();
+      }
+    };
+
+    // Use a slight delay to avoid immediate closure
+    setTimeout(() => {
+      document.addEventListener('click', handleDocumentClick);
+    }, 100);
+
     const handleWindowBlur = () => {
-      // The popup will automatically close when focus is lost
-      // This is just to ensure any cleanup if needed
+      // Chrome automatically closes popup on blur, but we can force it
+      setTimeout(() => {
+        // Only close if the popup truly lost focus
+        if (!document.hasFocus()) {
+          window.close();
+        }
+      }, 100);
     };
 
     window.addEventListener('blur', handleWindowBlur);
 
     return () => {
       window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('click', handleDocumentClick);
     };
   }, []);
 
@@ -423,12 +443,21 @@ export const Popup: React.FC = () => {
         }
       }
     } catch (error) {
+      // If the error is about system pages, keep the popup open to show the error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
       setState((prev) => ({
         ...prev,
-        error: `Failed to ${mode ? 'activate' : 'deactivate'} extension: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+        error: errorMessage,
+        activeMode: null, // Reset mode on error
       }));
+
+      // Also clear the stored mode on error
+      try {
+        await chrome.storage.local.set({ currentMode: null });
+      } catch (storageError) {
+        console.error('Failed to clear mode after error:', storageError);
+      }
     }
   };
 
@@ -659,33 +688,7 @@ export const Popup: React.FC = () => {
 
         {state.activeTab === 'journey' && (
           <div id='panel-journey' role='tabpanel' aria-labelledby='tab-journey'>
-            {/* Journey progress tracking */}
-            {state.activeMode === 'start' && (
-              <div className='journey-progress' role='region' aria-labelledby='journey-progress-title'>
-                <h3 id='journey-progress-title' className='progress-title'>Journey Progress</h3>
-                <div className='progress-stats'>
-                  <div className='progress-item'>
-                    <span className='progress-label'>Screenshots:</span>
-                    <span className='progress-value' aria-live='polite'>{state.stats.totalScreenshots}</span>
-                  </div>
-                  <div className='progress-item'>
-                    <span className='progress-label'>Status:</span>
-                    <span className='progress-value status-active' aria-live='polite'>Recording</span>
-                  </div>
-                  {state.stats.lastCaptured && (
-                    <div className='progress-item'>
-                      <span className='progress-label'>Last capture:</span>
-                      <span className='progress-value'>{new Date(state.stats.lastCaptured).toLocaleTimeString()}</span>
-                    </div>
-                  )}
-                </div>
-                {state.stats.totalScreenshots > 0 && (
-                  <div className='progress-bar-container' role='progressbar' aria-labelledby='journey-progress-title' aria-valuenow={state.stats.totalScreenshots} aria-valuemin={0} aria-valuemax={100}>
-                    <div className='progress-bar' style={{ width: `${Math.min(state.stats.totalScreenshots, 100)}%` }}></div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Journey progress tracking - removed from UI but totalScreenshots is still tracked internally */}
 
             <div className='mode-selection'>
               <h2 className='section-title'>Record your journey:</h2>
@@ -790,7 +793,7 @@ export const Popup: React.FC = () => {
 
       <footer className='footer-section' role='contentinfo'>
         <small className='footer-text' aria-label='Usage instruction'>
-          Snaps will save when you click Pause
+          {state.activeTab === 'moment' ? 'Alt + Click to Snap' : 'Snaps will save when you click Pause'}
         </small>
       </footer>
       {/* <div className='footer-container'>
