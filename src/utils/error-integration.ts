@@ -4,7 +4,7 @@
 
 import { errorHandler } from './error-handler';
 import { userNotificationService } from './user-notification';
-import { debugLogger } from './debug-logger';
+import { backgroundLogger } from './debug-logger';
 import { ExtensionError } from '@/types';
 
 /**
@@ -30,7 +30,7 @@ export async function withScreenshotErrorHandling<T>(
         position: 'top-right',
       }, {
         onRetry: async () => {
-          debugLogger.info('Retrying screenshot operation');
+          backgroundLogger.info('Retrying screenshot operation');
           try {
             await operation();
             userNotificationService.showNotification('Screenshot captured successfully!', 'success', { duration: 2000 });
@@ -88,7 +88,7 @@ export async function withVoiceErrorHandling<T>(
         position: 'top-right',
       }, {
         onShowHelp: (recoverySteps) => {
-          debugLogger.info('Voice error recovery steps:', recoverySteps);
+          backgroundLogger.info('Voice error recovery steps:', recoverySteps);
         }
       });
     }
@@ -167,7 +167,7 @@ export const chromeAPIWithErrorHandling = {
       }
 
       return new Promise<string>((resolve, reject) => {
-        chrome.tabs.captureVisibleTab(windowId, { format: 'png' }, (dataUrl) => {
+        chrome.tabs.captureVisibleTab(windowId!, { format: 'png' }, (dataUrl) => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message));
           } else if (!dataUrl) {
@@ -183,7 +183,7 @@ export const chromeAPIWithErrorHandling = {
   /**
    * Execute script with error handling
    */
-  executeScript: async (details: chrome.scripting.ScriptInjection): Promise<chrome.scripting.InjectionResult[]> => {
+  executeScript: async (details: chrome.scripting.ScriptInjection<any, any>): Promise<chrome.scripting.InjectionResult<any>[]> => {
     try {
       if (!chrome.scripting?.executeScript) {
         throw new ExtensionError(
@@ -272,7 +272,7 @@ export const chromeAPIWithErrorHandling = {
             if (chrome.runtime.lastError) {
               reject(new Error(chrome.runtime.lastError.message));
             } else {
-              resolve(result);
+              resolve(result as T);
             }
           });
         });
@@ -320,7 +320,7 @@ export const chromeAPIWithErrorHandling = {
               if (chrome.runtime.lastError) {
                 reject(new Error(chrome.runtime.lastError.message));
               } else {
-                resolve(result);
+                resolve(result as T);
               }
             });
           });
@@ -432,5 +432,5 @@ export function getErrorStatistics() {
  */
 export function clearErrorHistory() {
   errorHandler.clearErrors();
-  debugLogger.info('Error history cleared');
+  backgroundLogger.info('Error history cleared');
 }

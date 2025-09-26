@@ -1,380 +1,37 @@
+/**
+ * Background script - Streamlined main entry point
+ * Uses extracted services for better code organization
+ */
+
 import {
-  ExtensionMode,
-  ExtensionSettings,
-  ScreenshotData,
   ExtensionMessage,
-  MarkerColorSettings,
   ActivateExtensionMessage,
   DeactivateExtensionMessage,
-  JourneyState,
-  JourneyScreenshot,
+  ScreenshotData,
+  ExtensionSettings,
 } from '../types';
 import { ExtensionError } from '../types';
+import { screenshotService } from './services/screenshot-service';
+import { journeyService } from './services/journey-service';
+import { storageService } from './services/storage-service';
+import { settingsService } from './services/settings-service';
+import { backgroundLogger } from '../utils/debug-logger';
 
-// Font loading utility
-async function loadAndCheckFont(): Promise<void> {
-  // Create a temporary canvas to check font loading
-  const canvas = new OffscreenCanvas(100, 100);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  // Load the font using FontFace API
-  try {
-    const font = new FontFace(
-      'League Spartan',
-      'url(https://fonts.gstatic.com/s/leaguespartan/v11/kJEqBuEW6A0lliaV_m88ja5Tws-Xv8Sic3WG.woff2) format("woff2")',
-      {
-        weight: '400',
-      }
-    );
-
-    // Wait for font to load
-    await font.load();
-    // Add to FontFaceSet
-    //@ts-ignore
-    if (self.fonts) {
-      //@ts-ignore
-      self.fonts.add(font);
-    }
-  } catch (err) {
-    console.warn('Failed to load League Spartan font:', err);
-  }
-}
-
-// Default marker settings
-const DEFAULT_MARKER_SETTINGS: MarkerColorSettings = {
-  color: '#FF0000',
-  opacity: 0.8,
-  size: 32,
-  style: 'solid',
-};
-
-// Draw annotation text next to marker
-// function drawAnnotationText(
-//   ctx: OffscreenCanvasRenderingContext2D,
-//   coordinates: { x: number; y: number },
-//   annotation: string,
-//   markerSize: number
-// ): void {
-//   // Set text properties with specific font weight
-//   ctx.font =
-//     '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-//   ctx.textAlign = 'left';
-//   ctx.textBaseline = 'top';
-
-//   // Calculate text position (to the right of the marker)
-//   const textX = coordinates.x + markerSize / 2 + 10;
-//   const textY = coordinates.y - markerSize / 2;
-
-//   // Measure text to create background
-//   const lines = wrapText(annotation, 200); // Max width 200px
-//   const lineHeight = 18;
-//   const padding = 8;
-//   const textWidth = Math.max(
-//     ...lines.map((line) => ctx.measureText(line).width)
-//   );
-//   const textHeight = lines.length * lineHeight;
-
-//   // Draw background rectangle
-//   ctx.fillStyle = '#0277c0'; // Updated background color
-
-//   // Create rounded rectangle for background
-//   ctx.beginPath();
-//   ctx.roundRect(
-//     textX - padding,
-//     textY - padding,
-//     textWidth + padding * 2,
-//     textHeight + padding * 2,
-//     12 // border radius
-//   );
-//   ctx.fill();
-
-//   // Draw border with rounded corners
-//   ctx.strokeStyle = '#e5e7eb';
-//   ctx.lineWidth = 1;
-//   ctx.stroke();
-
-//   // Draw text
-//   ctx.fillStyle = '#ffffff';
-//   lines.forEach((line, index) => {
-//     ctx.fillText(line, textX, textY + index * lineHeight);
-//   });
-// }
-
-// Wrap text to fit within max width
-function wrapText(text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (const word of words) {
-    const testLine = currentLine + (currentLine ? ' ' : '') + word;
-    if (testLine.length * 8 > maxWidth && currentLine) {
-      // Rough character width estimation
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  }
-
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  return lines;
-}
-
-// Draw transcription text next to marker
-// function drawTranscriptionText(
-//   ctx: OffscreenCanvasRenderingContext2D,
-//   coordinates: { x: number; y: number },
-//   transcription: string,
-//   markerSize: number
-// ): void {
-//   // Set text properties with specific font weight
-//   ctx.font =
-//     '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-//   ctx.textAlign = 'left';
-//   ctx.textBaseline = 'top';
-
-//   // Position to the right of the marker (same as annotations)
-//   const textX = coordinates.x + markerSize / 2 + 10;
-//   const textY = coordinates.y - markerSize / 2;
-
-//   const lines = wrapText(transcription, 250);
-//   const lineHeight = 18;
-//   const padding = 12;
-//   const textWidth = Math.max(
-//     ...lines.map((line) => ctx.measureText(line).width)
-//   );
-//   const textHeight = lines.length * lineHeight;
-
-//   // Draw background with blue styling for transcriptions
-//   ctx.fillStyle = '#0277c0'; // Updated background color
-
-//   // Create rounded rectangle for background
-//   ctx.beginPath();
-//   ctx.roundRect(
-//     textX - padding,
-//     textY - padding,
-//     textWidth + padding * 2,
-//     textHeight + padding * 2,
-//     12 // border radius
-//   );
-//   ctx.fill();
-
-//   // Draw border with rounded corners
-//   ctx.strokeStyle = '#2563eb';
-//   ctx.lineWidth = 2;
-//   ctx.stroke();
-
-//   // Add label
-//   ctx.fillStyle = '#ffffff';
-//   ctx.font =
-//     '400 12px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-//   ctx.fillText('TRANSCRIPTION', textX, textY - padding - 18);
-
-//   // Draw transcription text
-//   ctx.font =
-//     '14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-//   ctx.fillStyle = '#ffffff';
-//   lines.forEach((line, index) => {
-//     ctx.fillText(line, textX, textY + index * lineHeight);
-//   });
-// }
-
-function drawTextBox(
-  ctx: OffscreenCanvasRenderingContext2D,
-  coordinates: { x: number; y: number },
-  text: string,
-  markerSize: number,
-  type: 'annotation' | 'transcription'
-): void {
-  // Set text properties with specific font weight
-  ctx.font =
-    '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-
-  // Position to the right of the marker
-  const textX = coordinates.x + markerSize / 2 + 10;
-  const textY = coordinates.y - markerSize / 2;
-
-  // Configure styling based on type
-  const config = {
-    annotation: {
-      maxWidth: 200,
-      padding: 8,
-      backgroundColor: '#0277c0',
-      borderColor: '#e5e7eb',
-      borderWidth: 1,
-      label: null,
-    },
-    transcription: {
-      maxWidth: 250,
-      padding: 12,
-      backgroundColor: '#0277c0',
-      borderColor: '#2563eb',
-      borderWidth: 2,
-      label: 'TRANSCRIPTION',
-    },
-  }[type];
-
-  const lines = wrapText(text, config.maxWidth);
-  const lineHeight = 18;
-  const textWidth = Math.max(
-    ...lines.map((line) => ctx.measureText(line).width)
-  );
-  const textHeight = lines.length * lineHeight;
-
-  // Draw background rectangle
-  ctx.fillStyle = config.backgroundColor;
-  ctx.beginPath();
-  ctx.roundRect(
-    textX - config.padding,
-    textY - config.padding,
-    textWidth + config.padding * 2,
-    textHeight + config.padding * 2,
-    12
-  );
-  ctx.fill();
-
-  // Draw border
-  ctx.strokeStyle = config.borderColor;
-  ctx.lineWidth = config.borderWidth;
-  ctx.stroke();
-
-  // Add label if specified (for transcriptions)
-  if (config.label) {
-    ctx.fillStyle = '#ffffff';
-    ctx.font =
-      '400 12px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-    ctx.fillText(config.label, textX, textY - config.padding - 18);
-  }
-
-  // Draw text
-  ctx.font =
-    '400 14px "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-  ctx.fillStyle = '#ffffff';
-  lines.forEach((line, index) => {
-    ctx.fillText(line, textX, textY + index * lineHeight);
-  });
-}
-
-// Draw marker on screenshot
-async function drawMarkerOnScreenshot(
-  dataUrl: string,
-  coordinates: { x: number; y: number },
-  selectedIcon: 'light' | 'blue' | 'dark' = 'blue',
-  annotation?: string,
-  transcription?: string
-): Promise<string> {
-  try {
-    // Convert data URL to ImageBitmap (works in service worker)
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
-    const imageBitmap = await createImageBitmap(blob);
-
-    // Create a canvas to draw on
-    const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
-    const ctx = canvas.getContext('2d')!;
-
-    // Draw the screenshot
-    ctx.drawImage(imageBitmap, 0, 0);
-
-    // Load the touchpoint icon
-    try {
-      const iconUrl = chrome.runtime.getURL(
-        `assets/icons/touchpoint-${selectedIcon}.png`
-      );
-      const iconResponse = await fetch(iconUrl);
-      const iconBlob = await iconResponse.blob();
-      const iconBitmap = await createImageBitmap(iconBlob);
-
-      // Draw the touchpoint icon at the click location (64px size)
-      const iconSize = 64;
-
-      // Match content script's showClickFeedback positioning exactly
-      const drawX = coordinates.x - 32; // Same as content script: coordinates.x - 32
-      const drawY = coordinates.y - 32; // Same as content script: coordinates.y - 32
-
-      ctx.drawImage(iconBitmap, drawX, drawY, iconSize, iconSize);
-
-      // Draw annotation or transcription text if provided
-      if (transcription) {
-        drawTextBox(ctx, coordinates, transcription, iconSize, 'transcription');
-      } else if (annotation) {
-        drawTextBox(ctx, coordinates, annotation, iconSize, 'annotation');
-      }
-    } catch (iconError) {
-      // Failed to load touchpoint icon, using fallback circle
-
-      // Fallback: draw a colored circle if icon loading fails
-      const size = 32;
-      ctx.beginPath();
-      ctx.arc(coordinates.x, coordinates.y, size / 2, 0, 2 * Math.PI);
-      ctx.fillStyle =
-        selectedIcon === 'blue'
-          ? '#3b82f6'
-          : selectedIcon === 'dark'
-          ? '#1f2937'
-          : '#f3f4f6';
-      ctx.globalAlpha = 0.8;
-      ctx.fill();
-
-      // Add white border for visibility
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 3;
-      ctx.globalAlpha = 1;
-      ctx.stroke();
-
-      // Add inner border for better contrast
-      ctx.beginPath();
-      ctx.arc(coordinates.x, coordinates.y, size / 2, 0, 2 * Math.PI);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Draw annotation text if provided
-      if (annotation) {
-        drawTextBox(ctx, coordinates, annotation, size, 'annotation');
-      }
-    }
-
-    // Convert to data URL
-    const resultBlob = await canvas.convertToBlob({ type: 'image/png' });
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(resultBlob);
-    });
-  } catch (error) {
-    // If marker drawing fails, return original screenshot
-    return dataUrl;
-  }
-}
-
-interface CaptureResult {
-  success: boolean;
-  dataUrl?: string;
-  error?: string;
-}
-
-interface CaptureData {
-  coordinates: { x: number; y: number };
-  annotation?: string;
-  transcription?: string;
-  selectedIcon?: 'light' | 'blue' | 'dark';
-}
+// Rate limiting for screenshot captures
+let lastCaptureTime = 0;
+const MIN_CAPTURE_INTERVAL = 1000; // 1 second between captures
 
 /**
  * Handle screenshot capture request
  */
 export async function handleScreenshotCapture(
-  captureData: CaptureData,
+  captureData: any,
   tabId?: number
-): Promise<CaptureResult> {
+): Promise<{
+  success: boolean;
+  dataUrl?: string;
+  error?: string;
+}> {
   try {
     // Rate limiting check
     const now = Date.now();
@@ -386,38 +43,12 @@ export async function handleScreenshotCapture(
     }
     lastCaptureTime = now;
 
-    // Get active tab if not provided
-    const tab = tabId
-      ? await chrome.tabs.get(tabId)
-      : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
-
-    if (!tab || !tab.id) {
-      return { success: false, error: 'No active tab found' };
-    }
-
-    // Capture the visible tab
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
-      format: 'png',
-    });
-
-    // Add marker to screenshot if coordinates are provided
-    if (captureData.coordinates && dataUrl) {
-      const markedDataUrl = await drawMarkerOnScreenshot(
-        dataUrl,
-        captureData.coordinates,
-        captureData.selectedIcon || 'blue',
-        captureData.annotation,
-        captureData.transcription
-      );
-      return { success: true, dataUrl: markedDataUrl };
-    }
-
-    return { success: true, dataUrl };
+    return await screenshotService.handleScreenshotCapture(captureData, tabId);
   } catch (error) {
+    backgroundLogger.error('Screenshot capture failed:', error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'Screenshot capture failed',
+      error: error instanceof Error ? error.message : 'Screenshot capture failed',
     };
   }
 }
@@ -429,21 +60,16 @@ export async function saveScreenshot(
   screenshotData: ScreenshotData
 ): Promise<{ downloadId: number }> {
   try {
-    // Generate filename based on page and timestamp
-    const url = new URL(screenshotData.url);
-    const timestamp = new Date(screenshotData.timestamp)
-      .toISOString()
-      .replace(/[:.]/g, '-');
-    const filename = `insight-clip_${url.hostname}_${timestamp}.png`;
-
-    // Start download
-    const downloadId = await chrome.downloads.download({
-      url: screenshotData.dataUrl,
-      filename,
-      saveAs: false,
-    });
-
-    return { downloadId };
+    const result = await screenshotService.saveScreenshot(screenshotData);
+    if (!result.success || !result.downloadId) {
+      throw new ExtensionError(
+        'Failed to save screenshot',
+        'storage',
+        'save_error',
+        { originalError: result.error }
+      );
+    }
+    return { downloadId: result.downloadId };
   } catch (error) {
     throw new ExtensionError(
       'Failed to save screenshot',
@@ -461,18 +87,14 @@ export async function handleSettingsUpdate(
   settings: Partial<ExtensionSettings>
 ): Promise<void> {
   try {
-    // Get current settings
-    const { settings: currentSettings } = await chrome.storage.sync.get(
-      'settings'
-    );
-
-    // Update settings
-    const newSettings = { ...currentSettings, ...settings };
-    await chrome.storage.sync.set({ settings: newSettings });
-
-    // Update badge if mode changed
-    if (settings.mode) {
-      await updateBadge(settings.mode);
+    const result = await settingsService.handleSettingsUpdate(settings);
+    if (!result.success) {
+      throw new ExtensionError(
+        'Failed to update settings',
+        'storage',
+        'settings_error',
+        { originalError: result.error }
+      );
     }
   } catch (error) {
     throw new ExtensionError(
@@ -491,55 +113,16 @@ export async function handleGetSettings(): Promise<{
   settings: ExtensionSettings;
 }> {
   try {
-    const { settings } = await chrome.storage.sync.get('settings');
-
-    // Return default settings if none exist
-    if (!settings) {
-      const defaultSettings: ExtensionSettings = {
-        mode: 'snap',
-        markerColor: {
-          color: '#FF0000',
-          opacity: 0.8,
-          size: 20,
-          style: 'solid',
-        },
-        saveLocation: {
-          path: 'Downloads/Screenshots',
-          createMonthlyFolders: true,
-          organizeByDomain: true,
-        },
-        voice: {
-          enabled: true,
-          autoTranscribe: false,
-          language: 'en-US',
-          maxDuration: 60,
-          quality: 'medium',
-          noiseReduction: true,
-          echoCancellation: true,
-        },
-        text: {
-          defaultFontSize: 16,
-          defaultColor: '#000000',
-          fontFamily: 'Arial, sans-serif',
-          spellCheck: true,
-          autoSave: true,
-          maxLength: 500,
-        },
-        transcription: {
-          enabled: true,
-          language: 'en-US',
-          maxDuration: 300,
-          confidenceThreshold: 0.8,
-          interimResults: true,
-          silenceTimeout: 2,
-        },
-      };
-
-      await chrome.storage.sync.set({ settings: defaultSettings });
-      return { settings: defaultSettings };
+    const result = await settingsService.handleGetSettings();
+    if (!result.success || !result.settings) {
+      throw new ExtensionError(
+        'Failed to get settings',
+        'storage',
+        'get_settings_error',
+        { originalError: result.error }
+      );
     }
-
-    return { settings };
+    return { settings: result.settings };
   } catch (error) {
     throw new ExtensionError(
       'Failed to get settings',
@@ -554,23 +137,19 @@ export async function handleGetSettings(): Promise<{
  * Get storage statistics
  */
 export async function handleGetStorageStats(): Promise<{
-  stats: { totalScreenshots: number; lastSaved: number | null };
+  stats: any;
 }> {
   try {
-    const { screenshots, stats } = await chrome.storage.local.get([
-      'screenshots',
-      'stats',
-    ]);
-
-    const totalScreenshots = screenshots ? Object.keys(screenshots).length : 0;
-    const lastSaved = stats?.lastSaved || null;
-
-    return {
-      stats: {
-        totalScreenshots,
-        lastSaved,
-      },
-    };
+    const result = await storageService.getStorageStats();
+    if (!result.success || !result.stats) {
+      throw new ExtensionError(
+        'Failed to get storage stats',
+        'storage',
+        'get_stats_error',
+        { originalError: result.error }
+      );
+    }
+    return { stats: result.stats };
   } catch (error) {
     throw new ExtensionError(
       'Failed to get storage stats',
@@ -582,28 +161,22 @@ export async function handleGetStorageStats(): Promise<{
 }
 
 /**
- * Toggle between screenshot and annotation modes
+ * Handle mode toggle
  */
-export async function handleModeToggle(): Promise<{ mode: ExtensionMode }> {
+export async function handleModeToggle(): Promise<{
+  success: boolean;
+  mode?: string;
+  error?: string;
+}> {
   try {
-    // Get current settings
-    const { settings } = await chrome.storage.sync.get('settings');
-    const currentMode = settings?.mode || 'screenshot';
-
-    // Toggle mode
-    const newMode: ExtensionMode = currentMode === 'snap' ? 'annotate' : 'snap';
-
-    // Update settings
-    await handleSettingsUpdate({ mode: newMode });
-
-    return { mode: newMode };
+    const result = await settingsService.handleModeToggle();
+    return result;
   } catch (error) {
-    throw new ExtensionError(
-      'Failed to toggle mode',
-      'operation',
-      'toggle_error',
-      { originalError: error }
-    );
+    backgroundLogger.error('Mode toggle failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Mode toggle failed',
+    };
   }
 }
 
@@ -611,21 +184,28 @@ export async function handleModeToggle(): Promise<{ mode: ExtensionMode }> {
  * Handle extension activation
  */
 export async function handleActivateExtension(data: {
-  mode: ExtensionMode;
-  selectedIcon: 'light' | 'blue' | 'dark';
+  mode: string;
+  selectedIcon: string;
 }): Promise<{ success: boolean }> {
   try {
-    // Load font before activation
-    await loadAndCheckFont();
+    backgroundLogger.info('Activating extension:', data);
 
-    // Store the current mode and selected icon
+    // Store the active state
     await chrome.storage.local.set({
       currentMode: data.mode,
       selectedIcon: data.selectedIcon,
     });
 
-    // Update badge
-    await updateBadge(data.mode);
+    // Update badge based on mode
+    if (data.mode === 'journey') {
+      await chrome.action.setBadgeText({ text: 'J' });
+      await chrome.action.setBadgeBackgroundColor({ color: '#2196F3' });
+      await chrome.action.setTitle({ title: 'SnapInsights - Journey Mode' });
+    } else {
+      await chrome.action.setBadgeText({ text: 'S' });
+      await chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' });
+      await chrome.action.setTitle({ title: 'SnapInsights - Snap Mode' });
+    }
 
     // Inject content script into active tab
     const [tab] = await chrome.tabs.query({
@@ -642,7 +222,7 @@ export async function handleActivateExtension(data: {
         tab.url?.startsWith('about:')
       ) {
         throw new Error(
-          `Cannot use Snap Mode on system pages like ${tab.url}. Please navigate to a regular website (like google.com) and try again.`
+          `Cannot activate extension on system pages like ${tab.url}. Please navigate to a regular website and try again.`
         );
       }
 
@@ -651,29 +231,17 @@ export async function handleActivateExtension(data: {
           target: { tabId: tab.id },
           files: ['content/content.js'],
         });
-      } catch (scriptError) {
-        throw scriptError;
-      }
 
-      // Wait a bit for script to load
-      await new Promise((resolve) => setTimeout(resolve, 500));
+        // Wait for script to load
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Test if content script is responsive first
-      try {
-        await chrome.tabs.sendMessage(tab.id, {
-          type: 'PING',
-        });
-      } catch (pingError) {
-        // Content script not responding, but continue anyway
-      }
-
-      // Send activation message to content script
-      try {
+        // Send activation message to content script
         await chrome.tabs.sendMessage(tab.id, {
           type: 'ACTIVATE_EXTENSION',
           data: { mode: data.mode, selectedIcon: data.selectedIcon },
         });
       } catch (messageError) {
+        backgroundLogger.warn('Failed to inject or message content script:', messageError);
         throw messageError;
       }
     } else {
@@ -720,6 +288,7 @@ export async function handleDeactivateExtension(): Promise<{
         });
       } catch (error) {
         // Content script might not be injected, ignore error
+        backgroundLogger.warn('Failed to send deactivation message:', error);
       }
     }
 
@@ -738,7 +307,7 @@ export async function handleDeactivateExtension(): Promise<{
  * Handle start capture (legacy support)
  */
 export async function handleStartCapture(
-  data: { mode: ExtensionMode },
+  data: { mode: string },
   tabId?: number
 ): Promise<{ success: boolean }> {
   try {
@@ -761,78 +330,30 @@ export async function handleStartCapture(
 }
 
 /**
- * Update extension badge based on mode
- */
-export async function updateBadge(mode: ExtensionMode): Promise<void> {
-  let text = 'S';
-  let title = 'Snap Mode';
-
-  switch (mode) {
-    case 'snap':
-      text = 'S';
-      title = 'Snap Mode';
-      break;
-    case 'annotate':
-      text = 'A';
-      title = 'Annotate Mode';
-      break;
-    case 'transcribe':
-      text = 'T';
-      title = 'Transcribe Mode';
-      break;
-    case 'start':
-    case 'journey':
-      text = 'J';
-      title = 'Journey Mode';
-      break;
-    default:
-      text = 'S';
-      title = 'Snap Mode';
-  }
-
-  await chrome.action.setBadgeText({ text });
-  await chrome.action.setTitle({ title });
-}
-
-/**
  * Start journey mode recording
  */
 export async function startJourney(): Promise<{
   success: boolean;
-  journeyState: JourneyState;
+  journeyState?: any;
 }> {
   try {
-    // Check if journey is already active
-    if (journeyState.isActive) {
-      return { success: false, journeyState };
+    const result = await journeyService.startJourney();
+    if (!result.success) {
+      return {
+        success: false,
+        journeyState: result.journeyState,
+      };
     }
 
-    // Get current active tab for start URL
+    // Update badge to show journey mode
+    await chrome.action.setBadgeText({ text: 'J' });
+    await chrome.action.setBadgeBackgroundColor({ color: '#2196F3' });
+    await chrome.action.setTitle({ title: 'SnapInsights - Journey Mode Active' });
+
+    // Inject content script for journey mode
     const [tab] = await chrome.tabs.query({
       active: true,
       currentWindow: true,
-    });
-    const startUrl = tab?.url;
-
-    // Initialize journey state
-    journeyState = {
-      isActive: true,
-      screenshots: [],
-      startTime: Date.now(),
-      endTime: undefined,
-      startUrl,
-    };
-
-    // Save to storage
-    await chrome.storage.local.set({ [JOURNEY_STORAGE_KEY]: journeyState });
-
-    // Update badge to show journey mode
-    await updateBadge('journey');
-
-    // Inject content script into active tab
-    console.log('🔧 Starting content script injection...', {
-      tabId: tab?.id,
-      url: tab?.url,
     });
 
     if (tab?.id) {
@@ -843,46 +364,36 @@ export async function startJourney(): Promise<{
         tab.url?.startsWith('edge://') ||
         tab.url?.startsWith('about:')
       ) {
-        console.error('❌ Invalid tab URL for injection:', tab.url);
+        backgroundLogger.error('Invalid tab URL for injection:', tab.url);
         throw new Error(
           `Cannot use Journey Mode on system pages like ${tab.url}. Please navigate to a regular website (like google.com) and try again.`
         );
       }
 
       try {
-        console.log('📥 Injecting content script...');
+        backgroundLogger.info('Injecting content script for journey mode');
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           files: ['content/content.js'],
         });
-        console.log('✅ Content script injected successfully');
-      } catch (scriptError) {
-        console.error('❌ Content script injection failed:', scriptError);
-        throw scriptError;
-      }
 
-      // Wait a bit for script to load
-      console.log('⏳ Waiting for content script to load...');
-      await new Promise((resolve) => setTimeout(resolve, 500));
+        // Wait for script to load
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Send start journey message to content script
-      try {
-        console.log('📤 Sending START_JOURNEY message to content script...');
+        // Send start journey message to content script
         await chrome.tabs.sendMessage(tab.id, {
           type: 'START_JOURNEY',
           timestamp: Date.now(),
         });
-        console.log('✅ START_JOURNEY message sent successfully');
       } catch (messageError) {
-        console.error('❌ Failed to send START_JOURNEY message:', messageError);
+        backgroundLogger.error('Failed to send START_JOURNEY message:', messageError);
         throw messageError;
       }
     } else {
-      console.error('❌ No active tab found');
       throw new Error('No active tab found');
     }
 
-    return { success: true, journeyState };
+    return { success: true, journeyState: result.journeyState };
   } catch (error) {
     throw new ExtensionError(
       'Failed to start journey',
@@ -898,19 +409,16 @@ export async function startJourney(): Promise<{
  */
 export async function stopJourney(): Promise<{
   success: boolean;
-  journeyState: JourneyState;
+  journeyState?: any;
 }> {
   try {
-    if (!journeyState.isActive) {
-      return { success: false, journeyState };
+    const result = await journeyService.stopJourney();
+    if (!result.success) {
+      return {
+        success: false,
+        journeyState: result.journeyState,
+      };
     }
-
-    // Mark journey as ended
-    journeyState.isActive = false;
-    journeyState.endTime = Date.now();
-
-    // Save to storage
-    await chrome.storage.local.set({ [JOURNEY_STORAGE_KEY]: journeyState });
 
     // Clear badge
     await chrome.action.setBadgeText({ text: '' });
@@ -928,12 +436,11 @@ export async function stopJourney(): Promise<{
           timestamp: Date.now(),
         });
       } catch (messageError) {
-        // Content script might not be injected, ignore error
-        console.warn('Failed to send stop journey message:', messageError);
+        backgroundLogger.warn('Failed to send stop journey message:', messageError);
       }
     }
 
-    return { success: true, journeyState };
+    return { success: true, journeyState: result.journeyState };
   } catch (error) {
     throw new ExtensionError(
       'Failed to stop journey',
@@ -949,46 +456,11 @@ export async function stopJourney(): Promise<{
  */
 export async function addJourneyScreenshot(
   screenshotData: ScreenshotData,
-  elementInfo?: {
-    tagName: string;
-    className?: string;
-    id?: string;
-    textContent?: string;
-  }
-): Promise<{ success: boolean; journeyState: JourneyState }> {
+  elementInfo?: any
+): Promise<{ success: boolean; journeyState?: any }> {
   try {
-    if (!journeyState.isActive) {
-      return { success: false, journeyState };
-    }
-
-    // Check if we've hit the maximum limit
-    if (journeyState.screenshots.length >= MAX_JOURNEY_SCREENSHOTS) {
-      throw new ExtensionError(
-        'Maximum journey screenshots reached',
-        'validation',
-        'max_screenshots_reached'
-      );
-    }
-
-    // Create journey screenshot
-    const journeyScreenshot: JourneyScreenshot = {
-      id: `journey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      dataUrl: screenshotData.dataUrl,
-      url: screenshotData.url,
-      timestamp: screenshotData.timestamp,
-      coordinates: screenshotData.coordinates,
-      sequence: journeyState.screenshots.length + 1,
-      elementInfo,
-      annotation: screenshotData.annotation,
-    };
-
-    // Add to collection
-    journeyState.screenshots.push(journeyScreenshot);
-
-    // Save to storage
-    await chrome.storage.local.set({ [JOURNEY_STORAGE_KEY]: journeyState });
-
-    return { success: true, journeyState };
+    const result = await journeyService.addJourneyScreenshot(screenshotData, elementInfo);
+    return result;
   } catch (error) {
     throw new ExtensionError(
       'Failed to add journey screenshot',
@@ -1004,77 +476,11 @@ export async function addJourneyScreenshot(
  */
 export async function saveJourneyCollection(): Promise<{
   success: boolean;
-  downloadIds: number[];
+  downloadIds?: number[];
 }> {
   try {
-    if (journeyState.screenshots.length === 0) {
-      throw new ExtensionError(
-        'No screenshots to save',
-        'validation',
-        'no_screenshots_to_save'
-      );
-    }
-
-    const downloadIds: number[] = [];
-    const timestamp = new Date(journeyState.startTime || Date.now())
-      .toISOString()
-      .replace(/[:.]/g, '-');
-    const folderName = `journey_${timestamp}`;
-
-    // Create journey metadata
-    const metadata = {
-      journeyId: `journey_${journeyState.startTime}`,
-      startTime: journeyState.startTime,
-      endTime: journeyState.endTime,
-      startUrl: journeyState.startUrl,
-      totalScreenshots: journeyState.screenshots.length,
-      screenshots: journeyState.screenshots.map((s) => ({
-        id: s.id,
-        sequence: s.sequence,
-        url: s.url,
-        timestamp: s.timestamp,
-        coordinates: s.coordinates,
-        elementInfo: s.elementInfo,
-        annotation: s.annotation,
-      })),
-    };
-
-    // Save metadata file
-    const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], {
-      type: 'application/json',
-    });
-    const metadataUrl = URL.createObjectURL(metadataBlob);
-    const metadataDownloadId = await chrome.downloads.download({
-      url: metadataUrl,
-      filename: `${folderName}/journey_metadata.json`,
-      saveAs: false,
-    });
-    downloadIds.push(metadataDownloadId);
-
-    // Save each screenshot
-    for (const screenshot of journeyState.screenshots) {
-      const sequence = screenshot.sequence.toString().padStart(3, '0');
-      const filename = `${folderName}/${sequence}_screenshot.png`;
-
-      const downloadId = await chrome.downloads.download({
-        url: screenshot.dataUrl,
-        filename,
-        saveAs: false,
-      });
-      downloadIds.push(downloadId);
-    }
-
-    // Clear journey state after saving
-    journeyState = {
-      isActive: false,
-      screenshots: [],
-      startTime: undefined,
-      endTime: undefined,
-      startUrl: undefined,
-    };
-    await chrome.storage.local.set({ [JOURNEY_STORAGE_KEY]: journeyState });
-
-    return { success: true, downloadIds };
+    const result = await journeyService.saveJourneyCollection();
+    return result;
   } catch (error) {
     throw new ExtensionError(
       'Failed to save journey collection',
@@ -1089,16 +495,19 @@ export async function saveJourneyCollection(): Promise<{
  * Get current journey state
  */
 export async function getJourneyState(): Promise<{
-  journeyState: JourneyState;
+  journeyState?: any;
 }> {
   try {
-    // Try to load from storage first
-    const { [JOURNEY_STORAGE_KEY]: storedState } =
-      await chrome.storage.local.get(JOURNEY_STORAGE_KEY);
-    if (storedState) {
-      journeyState = storedState;
+    const result = await journeyService.getJourneyState();
+    if (!result.success) {
+      throw new ExtensionError(
+        'Failed to get journey state',
+        'operation',
+        'get_journey_state_error',
+        { originalError: result.error }
+      );
     }
-    return { journeyState };
+    return { journeyState: result.journeyState };
   } catch (error) {
     throw new ExtensionError(
       'Failed to get journey state',
@@ -1114,15 +523,8 @@ export async function getJourneyState(): Promise<{
  */
 export async function clearJourneyState(): Promise<{ success: boolean }> {
   try {
-    journeyState = {
-      isActive: false,
-      screenshots: [],
-      startTime: undefined,
-      endTime: undefined,
-      startUrl: undefined,
-    };
-    await chrome.storage.local.remove(JOURNEY_STORAGE_KEY);
-    return { success: true };
+    const result = await journeyService.clearJourney();
+    return result;
   } catch (error) {
     throw new ExtensionError(
       'Failed to clear journey state',
@@ -1134,27 +536,7 @@ export async function clearJourneyState(): Promise<{ success: boolean }> {
 }
 
 // Keep service worker alive
-const PING_INTERVAL = 20000; // 20 seconds
-
-// Rate limiting for screenshot captures
-let lastCaptureTime = 0;
-const MIN_CAPTURE_INTERVAL = 1000; // 1 second between captures
-
-// Journey mode state management
-let journeyState: JourneyState = {
-  isActive: false,
-  screenshots: [],
-  startTime: undefined,
-  endTime: undefined,
-  startUrl: undefined,
-};
-
-// Journey mode constants
-const MAX_JOURNEY_SCREENSHOTS = 100; // Prevent infinite collections
-const JOURNEY_STORAGE_KEY = 'journeyState';
-
 function keepAlive() {
-  // Create an alarm that fires periodically
   chrome.alarms.create('keepAlive', {
     periodInMinutes: 0.5, // Every 30 seconds
   });
@@ -1163,7 +545,7 @@ function keepAlive() {
 // Listen for alarm
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'keepAlive') {
-    // Keep the worker alive
+    backgroundLogger.debug('Service worker keep-alive ping');
   }
 });
 
@@ -1181,10 +563,9 @@ chrome.runtime.onMessage.addListener(
           message: 'Background script is working!',
         });
         return true;
+
       case 'CAPTURE_SCREENSHOT':
-        // Wrap in try-catch to handle context invalidation
         try {
-          // Check if we can still communicate with the sender tab
           if (!sender.tab?.id) {
             sendResponse({ success: false, error: 'No valid tab context' });
             return true;
@@ -1195,7 +576,6 @@ chrome.runtime.onMessage.addListener(
 
           handleScreenshotCapture(captureData, sender.tab?.id)
             .then(async (result) => {
-              // If this is a journey mode screenshot, add it to the collection
               if (isJourneyMode && result.success && result.dataUrl) {
                 try {
                   const screenshotData: ScreenshotData = {
@@ -1206,61 +586,49 @@ chrome.runtime.onMessage.addListener(
                     annotation: captureData.annotation,
                   };
 
-                  await addJourneyScreenshot(
-                    screenshotData,
-                    captureData.elementInfo
-                  );
+                  await addJourneyScreenshot(screenshotData, captureData.elementInfo);
                 } catch (journeyError) {
-                  console.error(
-                    'Failed to add journey screenshot:',
-                    journeyError
-                  );
-                  // Don't fail the main capture, just log the error
+                  backgroundLogger.error('Failed to add journey screenshot:', journeyError);
                 }
               }
               sendResponse(result);
             })
             .catch((error) => {
-              console.error('Screenshot capture error:', error);
-              // Check if this is a context invalidation error
+              backgroundLogger.error('Screenshot capture error:', error);
               if (
                 error.message?.includes('Extension context invalidated') ||
                 error.message?.includes('Could not establish connection')
               ) {
                 sendResponse({
                   success: false,
-                  error:
-                    'Extension context invalidated. Please refresh the page and try again.',
+                  error: 'Extension context invalidated. Please refresh the page and try again.',
                 });
               } else {
                 sendResponse({ success: false, error: error.message });
               }
             });
         } catch (error) {
-          console.error('Message handler error:', error);
+          backgroundLogger.error('Message handler error:', error);
           sendResponse({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
-        return true; // Keep message channel open for async response
+        return true;
 
       case 'SAVE_SCREENSHOT':
         try {
           saveScreenshot((message as any).data)
             .then(sendResponse)
             .catch((error) => {
-              console.error('Save screenshot error:', error);
+              backgroundLogger.error('Save screenshot error:', error);
               sendResponse({
                 success: false,
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : 'Failed to save screenshot',
+                error: error instanceof Error ? error.message : 'Failed to save screenshot',
               });
             });
         } catch (error) {
-          console.error('Save screenshot handler error:', error);
+          backgroundLogger.error('Save screenshot handler error:', error);
           sendResponse({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -1303,7 +671,6 @@ chrome.runtime.onMessage.addListener(
         return true;
 
       case 'DEACTIVATE_EXTENSION':
-        const deactivateMsg = message as DeactivateExtensionMessage;
         handleDeactivateExtension()
           .then(sendResponse)
           .catch((error) => sendResponse({ success: false, error }));
@@ -1363,48 +730,10 @@ chrome.commands.onCommand.addListener(async (command) => {
 // Installation handling
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
-    // Set default settings
-    const defaultSettings: ExtensionSettings = {
-      mode: 'snap',
-      markerColor: {
-        color: '#FF0000',
-        opacity: 0.8,
-        size: 5,
-        style: 'solid',
-      },
-      saveLocation: {
-        path: 'Downloads/Screenshots',
-        createMonthlyFolders: true,
-        organizeByDomain: true,
-      },
-      voice: {
-        enabled: true,
-        autoTranscribe: false,
-        language: 'en-US',
-        maxDuration: 60,
-        quality: 'medium',
-        noiseReduction: true,
-        echoCancellation: true,
-      },
-      text: {
-        defaultFontSize: 16,
-        defaultColor: '#000000',
-        fontFamily: 'Arial, sans-serif',
-        spellCheck: true,
-        autoSave: true,
-        maxLength: 500,
-      },
-      transcription: {
-        enabled: true,
-        language: 'en-US',
-        maxDuration: 300,
-        confidenceThreshold: 0.8,
-        interimResults: true,
-        silenceTimeout: 2,
-      },
-    };
+    backgroundLogger.info('Extension installed, setting up defaults');
 
-    await chrome.storage.sync.set({ settings: defaultSettings });
+    // Initialize default settings using settings service
+    await settingsService.resetToDefaults();
 
     // Set initial extension state to no mode selected
     await chrome.storage.local.set({
@@ -1415,5 +744,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     // Clear any badge text (extension starts OFF)
     await chrome.action.setBadgeText({ text: '' });
     await chrome.action.setTitle({ title: 'SnapInsights' });
+
+    backgroundLogger.info('Extension setup completed');
   }
 });

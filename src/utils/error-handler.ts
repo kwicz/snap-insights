@@ -3,7 +3,7 @@
  */
 
 import { ExtensionError, ErrorCategory } from '@/types';
-import { debugLogger } from '@/utils/debug-logger';
+import { backgroundLogger } from './debug-logger';
 
 /**
  * User-friendly error messages for different error types
@@ -138,7 +138,7 @@ export class ErrorHandler {
     this.addToQueue(extensionError);
 
     // Log the error
-    debugLogger.error('Error handled:', {
+    backgroundLogger.error('Error handled:', {
       error: extensionError,
       context,
       timestamp: Date.now(),

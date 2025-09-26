@@ -3,7 +3,7 @@
  */
 
 import { UserErrorNotification } from './error-handler';
-import { debugLogger } from '@/utils/debug-logger';
+import { backgroundLogger } from './debug-logger';
 
 /**
  * Interface for notification display options
@@ -62,7 +62,7 @@ export class UserNotificationService {
 
     this.displayNotification(notificationId, element, options);
 
-    debugLogger.info('Error notification shown:', {
+    backgroundLogger.info('Error notification shown:', {
       id: notificationId,
       title: notification.title,
       type: notification.type,
