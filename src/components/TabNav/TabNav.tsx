@@ -15,13 +15,18 @@ interface TabNavProps {
 
 const TabNav: React.FC<TabNavProps> = ({ tabs, activeTab, onTabChange }) => {
   return (
-    <div className='tab-nav'>
+    <div className='tab-nav' role='tablist' aria-label='Navigation modes'>
       {tabs.map((tab) => (
         <button
           key={tab.id}
+          id={`tab-${tab.id}`}
           className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
           onClick={() => onTabChange(tab.id)}
           data-tab={tab.id}
+          role='tab'
+          aria-selected={activeTab === tab.id}
+          aria-controls={`panel-${tab.id}`}
+          tabIndex={activeTab === tab.id ? 0 : -1}
         >
           <span className='tab-label'>{tab.label}</span>
         </button>

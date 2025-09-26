@@ -52,6 +52,11 @@ export interface EventBusEvents {
   'ui:sidebar:closed': void;
   'ui:notification:show': { message: string; type: 'info' | 'success' | 'warning' | 'error' };
 
+  // Keyboard navigation events
+  'ui:keyboard:focus': { itemId: string; index: number; element: HTMLElement };
+  'ui:keyboard:activate': { itemId: string; index: number; element: HTMLElement };
+  'ui:keyboard:escape': { currentItemId?: string; currentIndex: number };
+
   // Error events
   'error:occurred': { error: Error; context: string; severity: 'low' | 'medium' | 'high' };
   'error:recovered': { error: Error; resolution: string };

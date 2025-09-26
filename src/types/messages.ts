@@ -47,6 +47,7 @@ export type MessageType =
   | 'STOP_JOURNEY'
   | 'SAVE_JOURNEY_COLLECTION'
   | 'GET_JOURNEY_STATE'
+  | 'GET_JOURNEY_STATS'
   | 'JOURNEY_SCREENSHOT_ADDED'
   | 'JOURNEY_STATE_UPDATED';
 
@@ -200,6 +201,10 @@ export interface GetJourneyStateMessage extends BaseMessage {
   type: 'GET_JOURNEY_STATE';
 }
 
+export interface GetJourneyStatsMessage extends BaseMessage {
+  type: 'GET_JOURNEY_STATS';
+}
+
 export interface JourneyScreenshotAddedMessage extends BaseMessage {
   type: 'JOURNEY_SCREENSHOT_ADDED';
   data: {
@@ -313,6 +318,7 @@ export type ExtensionMessage =
   | StopJourneyMessage
   | SaveJourneyCollectionMessage
   | GetJourneyStateMessage
+  | GetJourneyStatsMessage
   | JourneyScreenshotAddedMessage
   | JourneyStateUpdatedMessage;
 

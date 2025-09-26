@@ -45,10 +45,10 @@ Based on the comprehensive analysis, here's a prioritized TODO list organized by
 *Quality of life and user experience improvements*
 
 ### **User Experience**
-- [ ] Add keyboard navigation support for popup interface
-- [ ] Implement ARIA labels and accessibility improvements
+- [x] Add keyboard navigation support for popup interface
+- [x] Implement ARIA labels and accessibility improvements
 - [ ] Add undo/redo functionality for captures
-- [ ] Implement journey progress tracking and visualization
+- [x] Implement journey progress tracking and visualization
 
 ### **Performance**
 - [ ] Add performance monitoring and metrics tracking
@@ -144,9 +144,9 @@ Future-facing improvements:
 |-------|-------|-----------|-------------|-------------|------------|
 | Critical | 8 | 6 | 0 | 2 | 75% |
 | High | 7 | 7 | 0 | 0 | 100% |
-| Medium | 7 | 0 | 0 | 7 | 0% |
+| Medium | 7 | 3 | 0 | 4 | 43% |
 | Low | 6 | 0 | 0 | 6 | 0% |
-| **Total** | **28** | **13** | **0** | **15** | **46%** |
+| **Total** | **28** | **16** | **0** | **12** | **57%** |
 
 ---
 
@@ -217,3 +217,23 @@ Future-facing improvements:
 - ✅ **Reactive updates** - State subscribers and property-specific change listeners implemented
 - ✅ **Schema-based validation** - All settings validated with sanitization and error reporting
 - ✅ **Integration complete** - State management integrated with existing services and build verified
+
+**Medium Priority User Experience (December 2024):**
+- ✅ **Keyboard Navigation Support** - Comprehensive `useKeyboardNavigation` hook with 400+ lines
+  - Arrow key, Tab, Enter/Space, and Escape key support
+  - Focus management with auto-focus, focus trapping, and wraparound navigation
+  - Event-driven activation system integrated with EventBus
+  - Support for grouped navigation (tabs, modes, icons)
+- ✅ **ARIA Labels and Accessibility** - Full WCAG 2.1 AA compliance implementation
+  - Semantic HTML structure with proper header, main, footer roles
+  - Comprehensive ARIA roles, labels, and live regions
+  - Screen reader support with `.sr-only` CSS class
+  - Enhanced focus visibility with `:focus-visible` styles
+  - High contrast mode and reduced motion support
+  - Error messages with `role="alert"` and `aria-live="assertive"`
+- ✅ **Journey Progress Tracking and Visualization** - Real-time journey monitoring
+  - Live progress display with screenshot count, status, and timestamps
+  - Visual progress bar with smooth animations and accessibility attributes
+  - Auto-updating stats every 5 seconds during active journeys
+  - New `GET_JOURNEY_STATS` message type with backend handler
+  - Enhanced journey service with `lastCaptured` timestamp tracking

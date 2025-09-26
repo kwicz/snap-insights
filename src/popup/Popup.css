@@ -17,6 +17,129 @@ body {
   overflow: hidden;
 }
 
+/* Accessibility - Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Accessibility - Error message styling */
+.error-message {
+  background-color: #fee2e2;
+  border: 1px solid #f87171;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  color: #b91c1c;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Enhanced focus visible styles for better accessibility */
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .mode-button,
+  .icon-option {
+    border: 2px solid currentColor;
+  }
+
+  .mode-button.active,
+  .icon-option.selected {
+    background-color: currentColor;
+    color: white;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Journey Progress Tracking Styles */
+.journey-progress {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.progress-title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.progress-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.progress-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.progress-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.progress-value {
+  font-weight: 600;
+  color: #334155;
+}
+
+.progress-value.status-active {
+  color: #059669;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  transition: width 0.3s ease-in-out;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar {
+    transition: none;
+  }
+}
+
 .popup {
   width: 320px;
   height: 500px;

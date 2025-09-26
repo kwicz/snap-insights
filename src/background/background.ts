@@ -705,6 +705,12 @@ chrome.runtime.onMessage.addListener(
           .then(sendResponse)
           .catch((error) => sendResponse({ success: false, error }));
         return true;
+
+      case 'GET_JOURNEY_STATS':
+        journeyService.getJourneyStats()
+          .then(sendResponse)
+          .catch((error) => sendResponse({ success: false, error }));
+        return true;
     }
   }
 );

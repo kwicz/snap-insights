@@ -407,6 +407,11 @@ export class JourneyService {
 
       const uniqueUrls = new Set(screenshots.map(s => s.url)).size;
 
+      // Find the most recent screenshot timestamp
+      const lastCaptured = screenshots.length > 0
+        ? Math.max(...screenshots.map(s => s.timestamp))
+        : undefined;
+
       let averageTimeBetweenShots: number | undefined;
       if (screenshots.length > 1) {
         const times = screenshots.map(s => s.timestamp).sort((a, b) => a - b);
@@ -420,6 +425,7 @@ export class JourneyService {
         isActive: journey.isActive,
         averageTimeBetweenShots,
         uniqueUrls,
+        lastCaptured,
       };
 
       return {

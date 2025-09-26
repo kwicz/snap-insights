@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ExtensionSettings } from '@/types';
 import './Popup.css';
 
 // Components
 import TabNav, { TabIcons } from '@/components/TabNav';
 import TheGoodLogo from '@/components/thegoodlogo';
+
+// Hooks
+import { useKeyboardNavigation, NavigationItem } from '@/shared/hooks/useKeyboardNavigation';
+import { eventBus } from '@/shared/services/event-bus';
 
 export interface PopupState {
   settings: ExtensionSettings;
@@ -73,6 +77,19 @@ export const Popup: React.FC = () => {
     },
   });
 
+  // Keyboard navigation setup
+  const [navigationItems, setNavigationItems] = useState<NavigationItem[]>([]);
+
+  const keyboardNav = useKeyboardNavigation(navigationItems, {
+    enableArrowKeys: true,
+    enableTabKeys: true,
+    enableActivation: true,
+    enableEscape: true,
+    wrapAround: true,
+    trapFocus: true,
+    autoFocus: true,
+  });
+
   // Tab definitions
   const tabs = [
     {
@@ -86,6 +103,146 @@ export const Popup: React.FC = () => {
       icon: TabIcons.Start,
     },
   ];
+
+  // Update navigation items when state changes
+  useEffect(() => {
+    const items: NavigationItem[] = [];
+
+    // Add tab navigation items
+    items.push(
+      {
+        id: 'tab-moment',
+        ariaLabel: 'Snap a moment tab',
+        role: 'tab',
+        group: 'tabs'
+      },
+      {
+        id: 'tab-journey',
+        ariaLabel: 'Snap a journey tab',
+        role: 'tab',
+        group: 'tabs'
+      }
+    );
+
+    // Add mode buttons based on active tab
+    if (state.activeTab === 'moment') {
+      items.push(
+        {
+          id: 'mode-snap',
+          ariaLabel: 'Snap mode',
+          role: 'button',
+          group: 'modes',
+          disabled: state.isLoading
+        },
+        {
+          id: 'mode-annotate',
+          ariaLabel: 'Annotate mode',
+          role: 'button',
+          group: 'modes',
+          disabled: state.isLoading
+        },
+        {
+          id: 'mode-transcribe',
+          ariaLabel: 'Transcribe mode',
+          role: 'button',
+          group: 'modes',
+          disabled: state.isLoading
+        }
+      );
+    } else if (state.activeTab === 'journey') {
+      items.push(
+        {
+          id: 'mode-start',
+          ariaLabel: state.activeMode === 'start' ? 'Pause journey' : 'Start journey',
+          role: 'button',
+          group: 'modes',
+          disabled: state.isLoading
+        }
+      );
+
+      // Add save button if journey is active
+      if (state.activeMode === 'start') {
+        items.push({
+          id: 'save-journey',
+          ariaLabel: 'Save journey',
+          role: 'button',
+          group: 'modes',
+          disabled: state.isLoading
+        });
+      }
+    }
+
+    // Add icon selection items
+    items.push(
+      {
+        id: 'icon-light',
+        ariaLabel: 'Light touchpoint icon',
+        role: 'button',
+        group: 'icons'
+      },
+      {
+        id: 'icon-blue',
+        ariaLabel: 'Blue touchpoint icon',
+        role: 'button',
+        group: 'icons'
+      },
+      {
+        id: 'icon-dark',
+        ariaLabel: 'Dark touchpoint icon',
+        role: 'button',
+        group: 'icons'
+      }
+    );
+
+    setNavigationItems(items);
+  }, [state.activeTab, state.activeMode, state.isLoading]);
+
+  // Set up keyboard navigation event handlers
+  useEffect(() => {
+    const handleKeyboardActivation = (data: { itemId: string; index: number; element: HTMLElement }) => {
+      const { itemId } = data;
+
+      // Handle tab navigation
+      if (itemId === 'tab-moment') {
+        handleTabChange('moment');
+      } else if (itemId === 'tab-journey') {
+        handleTabChange('journey');
+      }
+      // Handle mode selection
+      else if (itemId === 'mode-snap') {
+        handleModeSelect(state.activeMode === 'snap' ? null : 'snap');
+      } else if (itemId === 'mode-annotate') {
+        handleModeSelect(state.activeMode === 'annotate' ? null : 'annotate');
+      } else if (itemId === 'mode-transcribe') {
+        handleModeSelect(state.activeMode === 'transcribe' ? null : 'transcribe');
+      } else if (itemId === 'mode-start') {
+        handleModeSelect(state.activeMode === 'start' ? null : 'start');
+      } else if (itemId === 'save-journey') {
+        handleSaveJourney();
+      }
+      // Handle icon selection
+      else if (itemId === 'icon-light') {
+        handleIconSelect('light');
+      } else if (itemId === 'icon-blue') {
+        handleIconSelect('blue');
+      } else if (itemId === 'icon-dark') {
+        handleIconSelect('dark');
+      }
+    };
+
+    const handleEscape = () => {
+      // Close popup on escape (popup will close automatically)
+      window.close();
+    };
+
+    const unsubscribeActivate = eventBus.on('ui:keyboard:activate', handleKeyboardActivation);
+    const unsubscribeEscape = eventBus.on('ui:keyboard:escape', handleEscape);
+
+    return () => {
+      unsubscribeActivate();
+      unsubscribeEscape();
+    };
+  }, [state.activeMode, state.activeTab]);
 
   // Load extension state when popup opens
   useEffect(() => {
@@ -146,6 +303,46 @@ export const Popup: React.FC = () => {
       window.removeEventListener('blur', handleWindowBlur);
     };
   }, []);
+
+  // Load journey stats when journey mode is active
+  useEffect(() => {
+    const loadJourneyStats = async () => {
+      if (state.activeTab === 'journey' && state.activeMode === 'start') {
+        try {
+          const response = await chrome.runtime.sendMessage({
+            type: 'GET_JOURNEY_STATS',
+          });
+
+          if (response.success && response.stats) {
+            setState((prev) => ({
+              ...prev,
+              stats: {
+                ...prev.stats,
+                totalScreenshots: response.stats.totalScreenshots || 0,
+                lastCaptured: response.stats.lastCaptured || null,
+              },
+            }));
+          }
+        } catch (error) {
+          console.error('Failed to load journey stats:', error);
+        }
+      }
+    };
+
+    loadJourneyStats();
+
+    // Set up interval to periodically update stats when journey is active
+    let statsInterval: number | null = null;
+    if (state.activeTab === 'journey' && state.activeMode === 'start') {
+      statsInterval = setInterval(loadJourneyStats, 5000); // Update every 5 seconds
+    }
+
+    return () => {
+      if (statsInterval) {
+        clearInterval(statsInterval);
+      }
+    };
+  }, [state.activeTab, state.activeMode]);
 
   const handleTabChange = (tabId: string) => {
     setState((prev) => ({
@@ -307,23 +504,23 @@ export const Popup: React.FC = () => {
 
   if (state.isLoading) {
     return (
-      <div className='popup popup--loading'>
-        <div className='popup__loading'>
-          <div className='popup__spinner' />
-          <span>Loading...</span>
+      <div className='popup popup--loading' role='application' aria-label='SnapInsights Extension Popup'>
+        <div className='popup__loading' role='status' aria-live='polite'>
+          <div className='popup__spinner' aria-hidden='true' />
+          <span>Loading extension...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className='popup'>
-      <div className='popup-header'>
+    <div className='popup' ref={keyboardNav.containerRef as React.RefObject<HTMLDivElement>} role='application' aria-label='SnapInsights Extension Popup'>
+      <header className='popup-header' role='banner'>
         <div className='app-icon'>
-          <img src='../assets/icons/icon.png' alt='SnapInsights' />
+          <img src='../assets/icons/icon.png' alt='SnapInsights Extension Icon' />
         </div>
-        <h1 className='app-title'>SnapInsights</h1>
-      </div>
+        <h1 className='app-title' id='main-title'>SnapInsights</h1>
+      </header>
 
       <TabNav
         tabs={tabs}
@@ -331,13 +528,20 @@ export const Popup: React.FC = () => {
         onTabChange={handleTabChange}
       />
 
-      <div className='popup-body'>
+      <main className='popup-body' role='main' aria-labelledby='main-title'>
+        {state.error && (
+          <div role='alert' aria-live='assertive' className='error-message'>
+            {state.error}
+          </div>
+        )}
+
         {state.activeTab === 'moment' && (
-          <>
+          <div id='panel-moment' role='tabpanel' aria-labelledby='tab-moment'>
             <div className='mode-selection'>
               <h2 className='section-title'>Choose your mode:</h2>
-              <div className='mode-grid'>
+              <div className='mode-grid' role='group' aria-label='Mode selection'>
                 <button
+                  id='mode-snap'
                   className={`mode-button snap-button ${
                     state.activeMode === 'snap' ? 'active' : ''
                   }`}
@@ -347,12 +551,18 @@ export const Popup: React.FC = () => {
                     )
                   }
                   disabled={state.isLoading}
+                  aria-pressed={state.activeMode === 'snap'}
+                  aria-describedby='snap-description'
                 >
                   <div className='mode-icon'>{TabIcons.Snap}</div>
                   <span className='mode-label'>Snap</span>
+                  <span id='snap-description' className='sr-only'>
+                    Capture screenshot on click
+                  </span>
                 </button>
 
                 <button
+                  id='mode-annotate'
                   className={`mode-button annotate-button ${
                     state.activeMode === 'annotate' ? 'active' : ''
                   }`}
@@ -362,12 +572,18 @@ export const Popup: React.FC = () => {
                     )
                   }
                   disabled={state.isLoading}
+                  aria-pressed={state.activeMode === 'annotate'}
+                  aria-describedby='annotate-description'
                 >
                   <div className='mode-icon'>{TabIcons.Annotate}</div>
                   <span className='mode-label'>Annotate</span>
+                  <span id='annotate-description' className='sr-only'>
+                    Capture screenshot with annotation tools
+                  </span>
                 </button>
 
                 <button
+                  id='mode-transcribe'
                   className={`mode-button transcribe-button ${
                     state.activeMode === 'transcribe' ? 'active' : ''
                   }`}
@@ -377,9 +593,14 @@ export const Popup: React.FC = () => {
                     )
                   }
                   disabled={state.isLoading}
+                  aria-pressed={state.activeMode === 'transcribe'}
+                  aria-describedby='transcribe-description'
                 >
                   <div className='mode-icon'>{TabIcons.Transcribe}</div>
                   <span className='mode-label'>Transcribe</span>
+                  <span id='transcribe-description' className='sr-only'>
+                    Capture audio with transcription
+                  </span>
                 </button>
               </div>
             </div>
@@ -387,52 +608,90 @@ export const Popup: React.FC = () => {
             <div className='icon-selection'>
               <h2 className='section-title'>Choose your icon:</h2>
               <div className='icon-selection-container'>
-                <div className='icon-grid'>
-                  <div
+                <div className='icon-grid' role='group' aria-label='Icon selection'>
+                  <button
+                    id='icon-light'
                     className={`icon-option ${
                       state.selectedIcon === 'light' ? 'selected' : ''
                     }`}
                     onClick={() => handleIconSelect('light')}
+                    aria-pressed={state.selectedIcon === 'light'}
+                    aria-label='Select light touchpoint icon'
                   >
                     <img
                       src='../assets/icons/touchpoint-light.png'
                       alt='Light Touchpoint'
                     />
-                  </div>
-                  <div
+                  </button>
+                  <button
+                    id='icon-blue'
                     className={`icon-option ${
                       state.selectedIcon === 'blue' ? 'selected' : ''
                     }`}
                     onClick={() => handleIconSelect('blue')}
+                    aria-pressed={state.selectedIcon === 'blue'}
+                    aria-label='Select blue touchpoint icon'
                   >
                     <img
                       src='../assets/icons/touchpoint-blue.png'
                       alt='Blue Touchpoint'
                     />
-                  </div>
-                  <div
+                  </button>
+                  <button
+                    id='icon-dark'
                     className={`icon-option ${
                       state.selectedIcon === 'dark' ? 'selected' : ''
                     }`}
                     onClick={() => handleIconSelect('dark')}
+                    aria-pressed={state.selectedIcon === 'dark'}
+                    aria-label='Select dark touchpoint icon'
                   >
                     <img
                       src='../assets/icons/touchpoint-dark.png'
                       alt='Dark Touchpoint'
                     />
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {state.activeTab === 'journey' && (
-          <>
+          <div id='panel-journey' role='tabpanel' aria-labelledby='tab-journey'>
+            {/* Journey progress tracking */}
+            {state.activeMode === 'start' && (
+              <div className='journey-progress' role='region' aria-labelledby='journey-progress-title'>
+                <h3 id='journey-progress-title' className='progress-title'>Journey Progress</h3>
+                <div className='progress-stats'>
+                  <div className='progress-item'>
+                    <span className='progress-label'>Screenshots:</span>
+                    <span className='progress-value' aria-live='polite'>{state.stats.totalScreenshots}</span>
+                  </div>
+                  <div className='progress-item'>
+                    <span className='progress-label'>Status:</span>
+                    <span className='progress-value status-active' aria-live='polite'>Recording</span>
+                  </div>
+                  {state.stats.lastCaptured && (
+                    <div className='progress-item'>
+                      <span className='progress-label'>Last capture:</span>
+                      <span className='progress-value'>{new Date(state.stats.lastCaptured).toLocaleTimeString()}</span>
+                    </div>
+                  )}
+                </div>
+                {state.stats.totalScreenshots > 0 && (
+                  <div className='progress-bar-container' role='progressbar' aria-labelledby='journey-progress-title' aria-valuenow={state.stats.totalScreenshots} aria-valuemin={0} aria-valuemax={100}>
+                    <div className='progress-bar' style={{ width: `${Math.min(state.stats.totalScreenshots, 100)}%` }}></div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className='mode-selection'>
               <h2 className='section-title'>Record your journey:</h2>
-              <div className='mode-grid'>
+              <div className='mode-grid' role='group' aria-label='Journey controls'>
                 <button
+                  id='mode-start'
                   className={`mode-button start-button ${
                     state.activeMode === 'start' ? 'active' : ''
                   }`}
@@ -442,6 +701,8 @@ export const Popup: React.FC = () => {
                     )
                   }
                   disabled={state.isLoading}
+                  aria-pressed={state.activeMode === 'start'}
+                  aria-describedby='start-description'
                 >
                   <div className='mode-icon'>
                     {state.activeMode === 'start'
@@ -451,16 +712,24 @@ export const Popup: React.FC = () => {
                   <span className='mode-label'>
                     {state.activeMode === 'start' ? 'Pause' : 'Start'}
                   </span>
+                  <span id='start-description' className='sr-only'>
+                    {state.activeMode === 'start' ? 'Pause journey recording' : 'Start journey recording'}
+                  </span>
                 </button>
 
                 {state.activeMode === 'start' && (
                   <button
+                    id='save-journey'
                     className='mode-button save-button'
                     onClick={handleSaveJourney}
                     disabled={state.isLoading}
+                    aria-describedby='save-description'
                   >
                     <div className='mode-icon'>{TabIcons.Save}</div>
                     <span className='mode-label'>Save Journey</span>
+                    <span id='save-description' className='sr-only'>
+                      Save all journey screenshots
+                    </span>
                   </button>
                 )}
               </div>
@@ -469,52 +738,61 @@ export const Popup: React.FC = () => {
             <div className='icon-selection'>
               <h2 className='section-title'>Choose your icon:</h2>
               <div className='icon-selection-container'>
-                <div className='icon-grid'>
-                  <div
+                <div className='icon-grid' role='group' aria-label='Icon selection'>
+                  <button
+                    id='icon-light'
                     className={`icon-option ${
                       state.selectedIcon === 'light' ? 'selected' : ''
                     }`}
                     onClick={() => handleIconSelect('light')}
+                    aria-pressed={state.selectedIcon === 'light'}
+                    aria-label='Select light touchpoint icon'
                   >
                     <img
                       src='../assets/icons/touchpoint-light.png'
                       alt='Light Touchpoint'
                     />
-                  </div>
-                  <div
+                  </button>
+                  <button
+                    id='icon-blue'
                     className={`icon-option ${
                       state.selectedIcon === 'blue' ? 'selected' : ''
                     }`}
                     onClick={() => handleIconSelect('blue')}
+                    aria-pressed={state.selectedIcon === 'blue'}
+                    aria-label='Select blue touchpoint icon'
                   >
                     <img
                       src='../assets/icons/touchpoint-blue.png'
                       alt='Blue Touchpoint'
                     />
-                  </div>
-                  <div
+                  </button>
+                  <button
+                    id='icon-dark'
                     className={`icon-option ${
                       state.selectedIcon === 'dark' ? 'selected' : ''
                     }`}
                     onClick={() => handleIconSelect('dark')}
+                    aria-pressed={state.selectedIcon === 'dark'}
+                    aria-label='Select dark touchpoint icon'
                   >
                     <img
                       src='../assets/icons/touchpoint-dark.png'
                       alt='Dark Touchpoint'
                     />
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )}
-      </div>
+      </main>
 
-      <div className='footer-section'>
-        <small className='footer-text'>
+      <footer className='footer-section' role='contentinfo'>
+        <small className='footer-text' aria-label='Usage instruction'>
           Snaps will save when you click Pause
         </small>
-      </div>
+      </footer>
       {/* <div className='footer-container'>
         <small className='footer-text'>
           Powered by <TheGoodLogo />
