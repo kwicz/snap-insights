@@ -6,6 +6,8 @@
 import { ExtensionSettings, ExtensionMode, MarkerColorSettings } from '../../types';
 import { backgroundLogger } from '../../utils/debug-logger';
 import { storageService } from './storage-service';
+import { settingsValidator } from '../../shared/validation/settings-schema';
+import { eventBus } from '../../shared/services/event-bus';
 
 /**
  * Settings and extension configuration service
@@ -17,11 +19,29 @@ export class SettingsService {
   async handleSettingsUpdate(settingsUpdate: Partial<ExtensionSettings>): Promise<{
     success: boolean;
     error?: string;
+    warnings?: string[];
   }> {
     try {
       backgroundLogger.debug('Handling settings update:', settingsUpdate);
 
-      const result = await storageService.updateSettings(settingsUpdate);
+      // Get current settings for comparison
+      const currentResult = await storageService.getSettings();
+      const currentSettings = currentResult.success ? currentResult.settings : undefined;
+
+      // Validate and sanitize settings
+      const validation = settingsValidator.validateExtensionSettings(settingsUpdate);
+      if (!validation.isValid) {
+        backgroundLogger.warn('Settings validation failed:', validation.errors);
+        return {
+          success: false,
+          error: `Invalid settings: ${validation.errors.join(', ')}`,
+        };
+      }
+
+      // Use sanitized settings if available
+      const finalSettings = validation.sanitized || settingsUpdate;
+
+      const result = await storageService.updateSettings(finalSettings);
       if (!result.success) {
         return {
           success: false,
@@ -29,8 +49,17 @@ export class SettingsService {
         };
       }
 
+      // Emit settings update event
+      eventBus.emit('settings:updated', {
+        oldSettings: currentSettings,
+        newSettings: { ...currentSettings, ...finalSettings },
+      });
+
       backgroundLogger.info('Settings update handled successfully');
-      return { success: true };
+      return {
+        success: true,
+        warnings: validation.warnings.length > 0 ? validation.warnings : undefined
+      };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       backgroundLogger.error('Failed to handle settings update:', error);

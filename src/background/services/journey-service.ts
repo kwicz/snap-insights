@@ -6,6 +6,7 @@
 import { ScreenshotData, JourneyState, JourneyScreenshot } from '../../types';
 import { backgroundLogger } from '../../utils/debug-logger';
 import { screenshotService } from './screenshot-service';
+import { eventBus } from '../../shared/services/event-bus';
 
 const MAX_JOURNEY_SCREENSHOTS = 100;
 const STORAGE_KEY_JOURNEY = 'journeyState';
@@ -74,6 +75,12 @@ export class JourneyService {
       // Update badge with count
       await this.updateJourneyBadge(updatedState.screenshots.length);
 
+      // Emit journey screenshot added event
+      eventBus.emit('journey:screenshot:added', {
+        screenshot: journeyScreenshot,
+        totalCount: updatedState.screenshots.length,
+      });
+
       backgroundLogger.info(`Journey screenshot added. Count: ${updatedState.screenshots.length}`);
 
       return {
@@ -117,6 +124,9 @@ export class JourneyService {
 
       // Update badge
       await this.updateJourneyBadge(0);
+
+      // Emit journey started event
+      eventBus.emit('journey:started', { journeyState });
 
       backgroundLogger.info('Journey started successfully');
 
@@ -170,6 +180,9 @@ export class JourneyService {
 
       // Clear badge
       await chrome.action.setBadgeText({ text: '' });
+
+      // Emit journey stopped event
+      eventBus.emit('journey:stopped', { journeyState: stoppedState });
 
       backgroundLogger.info(`Journey stopped. Total screenshots: ${stoppedState.screenshots.length}`);
 
@@ -276,7 +289,12 @@ export class JourneyService {
         // Don't fail the entire operation for metadata
       }
 
-      // Mark journey as saved (optional: could clear it here)
+      // Emit collection saved event
+      eventBus.emit('journey:collection:saved', {
+        downloadIds,
+        totalFiles: downloadIds.length,
+      });
+
       backgroundLogger.info(`Journey collection saved: ${downloadIds.length} files downloaded`);
 
       return {
