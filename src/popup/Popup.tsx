@@ -150,18 +150,17 @@ export const Popup: React.FC = () => {
         }
       );
     } else if (state.activeTab === 'journey') {
-      items.push(
-        {
+      // Only show start button if journey is not active
+      if (!state.activeMode) {
+        items.push({
           id: 'mode-start',
-          ariaLabel: state.activeMode === 'start' ? 'Pause journey' : 'Start journey',
+          ariaLabel: 'Start journey',
           role: 'button',
           group: 'modes',
           disabled: state.isLoading
-        }
-      );
-
-      // Add save button if journey is active
-      if (state.activeMode === 'start') {
+        });
+      } else {
+        // Only show save button if journey is active
         items.push({
           id: 'save-journey',
           ariaLabel: 'Save journey',
@@ -216,7 +215,7 @@ export const Popup: React.FC = () => {
       } else if (itemId === 'mode-transcribe') {
         handleModeSelect(state.activeMode === 'transcribe' ? null : 'transcribe');
       } else if (itemId === 'mode-start') {
-        handleModeSelect(state.activeMode === 'start' ? null : 'start');
+        handleModeSelect('start');
       } else if (itemId === 'save-journey') {
         handleSaveJourney();
       }
@@ -693,37 +692,25 @@ export const Popup: React.FC = () => {
             <div className='mode-selection'>
               <h2 className='section-title'>Record your journey:</h2>
               <div className='mode-grid' role='group' aria-label='Journey controls'>
-                <button
-                  id='mode-start'
-                  className={`mode-button start-button ${
-                    state.activeMode === 'start' ? 'active' : ''
-                  }`}
-                  onClick={() =>
-                    handleModeSelect(
-                      state.activeMode === 'start' ? null : 'start'
-                    )
-                  }
-                  disabled={state.isLoading}
-                  aria-pressed={state.activeMode === 'start'}
-                  aria-describedby='start-description'
-                >
-                  <div className='mode-icon'>
-                    {state.activeMode === 'start'
-                      ? TabIcons.Pause
-                      : TabIcons.Start}
-                  </div>
-                  <span className='mode-label'>
-                    {state.activeMode === 'start' ? 'Pause' : 'Start'}
-                  </span>
-                  <span id='start-description' className='sr-only'>
-                    {state.activeMode === 'start' ? 'Pause journey recording' : 'Start journey recording'}
-                  </span>
-                </button>
-
-                {state.activeMode === 'start' && (
+                {!state.activeMode ? (
+                  <button
+                    id='mode-start'
+                    className='mode-button start-button'
+                    onClick={() => handleModeSelect('start')}
+                    disabled={state.isLoading}
+                    aria-pressed={false}
+                    aria-describedby='start-description'
+                  >
+                    <div className='mode-icon'>{TabIcons.Start}</div>
+                    <span className='mode-label'>Start</span>
+                    <span id='start-description' className='sr-only'>
+                      Start journey recording
+                    </span>
+                  </button>
+                ) : (
                   <button
                     id='save-journey'
-                    className='mode-button save-button'
+                    className='mode-button save-button active'
                     onClick={handleSaveJourney}
                     disabled={state.isLoading}
                     aria-describedby='save-description'
@@ -793,7 +780,7 @@ export const Popup: React.FC = () => {
 
       <footer className='footer-section' role='contentinfo'>
         <small className='footer-text' aria-label='Usage instruction'>
-          {state.activeTab === 'moment' ? 'Alt + Click to Snap' : 'Snaps will save when you click Pause'}
+          {state.activeTab === 'moment' ? 'Alt + Click to Snap' : 'Alt + Click to capture journey moments'}
         </small>
       </footer>
       {/* <div className='footer-container'>
