@@ -5,6 +5,7 @@
 
 import { ScreenshotData, MarkerColorSettings } from '../../types';
 import { backgroundLogger } from '../../utils/debug-logger';
+import { COLORS } from '../../shared/constants/ui-constants';
 
 // Default marker settings
 const DEFAULT_MARKER_SETTINGS: MarkerColorSettings = {
@@ -56,14 +57,6 @@ export class ScreenshotService {
       let processedDataUrl = dataUrl;
       if (captureData?.coordinates) {
         const annotationText = captureData.annotation || captureData.transcription;
-        console.log('🔥 SCREENSHOT-SERVICE: Processing screenshot with:', {
-          coordinates: captureData.coordinates,
-          selectedIcon: captureData.selectedIcon || 'blue',
-          annotation: captureData.annotation,
-          transcription: captureData.transcription,
-          finalAnnotationText: annotationText,
-          hasAnnotation: !!annotationText
-        });
 
         try {
           processedDataUrl = await this.drawMarkerOnScreenshot(
@@ -72,7 +65,6 @@ export class ScreenshotService {
             captureData.selectedIcon || 'blue',
             annotationText
           );
-          console.log('🔥 SCREENSHOT-SERVICE: Marker drawn successfully');
         } catch (markerError) {
           backgroundLogger.warn(
             'Failed to draw marker, using original screenshot:',
@@ -160,11 +152,6 @@ export class ScreenshotService {
 
         // Create ImageBitmap from blob (service worker compatible)
         const img = await createImageBitmap(imageBlob);
-
-        console.log('🔥 SCREENSHOT-SERVICE: ImageBitmap created successfully', {
-          width: img.width,
-          height: img.height
-        });
         // Create canvas with image dimensions
         const canvas = new OffscreenCanvas(img.width, img.height);
         const ctx = canvas.getContext('2d');
@@ -176,7 +163,6 @@ export class ScreenshotService {
 
         // Draw original image
         ctx.drawImage(img, 0, 0);
-        console.log('🔥 SCREENSHOT-SERVICE: Original image drawn to canvas');
 
         // Get marker settings from storage or use defaults
         const markerSettings = await this.getMarkerSettings();
@@ -186,21 +172,12 @@ export class ScreenshotService {
 
         // Draw annotation if provided
         if (annotation) {
-          console.log('🔥 SCREENSHOT-SERVICE: Drawing annotation text:', {
-            annotation,
-            annotationLength: annotation.length,
-            coordinates,
-            markerSize: markerSettings.size
-          });
           this.drawAnnotationText(
             ctx,
             coordinates,
             annotation,
             markerSettings.size
           );
-          console.log('🔥 SCREENSHOT-SERVICE: Annotation text drawn successfully');
-        } else {
-          console.log('🔥 SCREENSHOT-SERVICE: No annotation text to draw');
         }
 
         // Convert to data URL
@@ -217,7 +194,7 @@ export class ScreenshotService {
 
         reader.readAsDataURL(canvasBlob);
       } catch (error) {
-        console.error('🔥 SCREENSHOT-SERVICE: Error in drawMarkerOnScreenshot:', error);
+        backgroundLogger.error('Error in drawMarkerOnScreenshot:', error);
         reject(error);
       }
     });
@@ -270,8 +247,6 @@ export class ScreenshotService {
         `assets/icons/touchpoint-${selectedIcon}.png`
       );
 
-      console.log('🔥 SCREENSHOT-SERVICE: Loading icon from:', iconUrl);
-
       // Fetch icon and create ImageBitmap (service worker compatible)
       const iconResponse = await fetch(iconUrl);
       const iconBlob = await iconResponse.blob();
@@ -287,10 +262,8 @@ export class ScreenshotService {
         iconSize
       );
 
-      console.log('🔥 SCREENSHOT-SERVICE: Icon drawn successfully');
     } catch (error) {
       // Icon loading failed, marker circle is already drawn
-      console.warn('🔥 SCREENSHOT-SERVICE: Failed to load marker icon:', error);
     }
 
     // Reset alpha
@@ -298,7 +271,7 @@ export class ScreenshotService {
   }
 
   /**
-   * Draw annotation text
+   * Draw annotation text in speech bubble
    */
   private drawAnnotationText(
     ctx: OffscreenCanvasRenderingContext2D,
@@ -306,40 +279,76 @@ export class ScreenshotService {
     annotation: string,
     markerSize: number
   ): void {
+    // Get canvas dimensions to determine positioning
+    const canvasWidth = ctx.canvas.width;
     // Set text properties with fallback fonts
     ctx.font =
       '500 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
-    // Calculate text position relative to marker
-    const textX = coordinates.x + markerSize / 2 + 15;
-    const textY = coordinates.y - markerSize / 2;
+    // Determine if touchpoint is in right half of screen
+    const isRightHalf = coordinates.x > canvasWidth / 2;
+
+    // Calculate text position - left or right of marker based on screen position
+    let textX: number;
+    if (isRightHalf) {
+      // Position to the left of the touchpoint with more space
+      textX = coordinates.x - markerSize / 2 - 20;
+    } else {
+      // Position to the right of the touchpoint (original behavior)
+      textX = coordinates.x + markerSize / 2 + 12;
+    }
+
+    const textY = coordinates.y - markerSize / 2 - 85; // Move up by 85px (50 + 35)
 
     // Wrap text and calculate dimensions
     const lines = this.wrapText(annotation, 200);
     const lineHeight = 20;
-    const padding = 12;
+    const padding = 16;
+    const borderRadius = 12;
+    const tailSize = 6; // Smaller tail for closer positioning
 
     const textWidth = Math.max(
       ...lines.map((line) => ctx.measureText(line).width)
     );
     const textHeight = lines.length * lineHeight;
 
-    // Apply shadow before drawing background
+    // Speech bubble dimensions - adjust X position for left-side placement
+    let bubbleX: number;
+    if (isRightHalf) {
+      // When on left side of touchpoint, bubble should extend further left
+      bubbleX = textX - textWidth - padding;
+    } else {
+      // Original behavior - bubble to the right
+      bubbleX = textX - padding;
+    }
+
+    const bubbleY = textY - padding;
+    const bubbleWidth = textWidth + padding * 2;
+    const bubbleHeight = textHeight + padding * 2;
+
+    // Apply shadow before drawing speech bubble
     ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
     ctx.shadowBlur = 4;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 2;
 
-    // Draw background with primary blue color (#3b82f6)
-    ctx.fillStyle = '#3b82f6';
-    ctx.fillRect(
-      textX - padding,
-      textY - padding,
-      textWidth + padding * 2,
-      textHeight + padding * 2
+    // Draw speech bubble with rounded rectangle + tail using primary blue
+    ctx.fillStyle = COLORS.PRIMARY;
+
+    this.drawSpeechBubble(
+      ctx,
+      bubbleX,
+      bubbleY,
+      bubbleWidth,
+      bubbleHeight,
+      borderRadius,
+      tailSize,
+      coordinates,
+      isRightHalf // Pass positioning info for tail direction
     );
+
 
     // Reset shadow for text
     ctx.shadowColor = 'transparent';
@@ -347,11 +356,105 @@ export class ScreenshotService {
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
 
-    // Draw text in white
+    // Draw text in white - adjust alignment for left-side placement
     ctx.fillStyle = '#ffffff';
-    lines.forEach((line, index) => {
-      ctx.fillText(line, textX, textY + index * lineHeight);
-    });
+
+    if (isRightHalf) {
+      // When bubble is on left side, align text to right within bubble
+      ctx.textAlign = 'right';
+      lines.forEach((line, index) => {
+        ctx.fillText(line, textX, textY + index * lineHeight);
+      });
+    } else {
+      // Original behavior - left aligned text
+      ctx.textAlign = 'left';
+      lines.forEach((line, index) => {
+        ctx.fillText(line, textX, textY + index * lineHeight);
+      });
+    }
+  }
+
+  /**
+   * Draw speech bubble shape with rounded corners and tail
+   */
+  private drawSpeechBubble(
+    ctx: OffscreenCanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    borderRadius: number,
+    tailSize: number,
+    markerCoordinates: { x: number; y: number },
+    isLeftSide: boolean = false // True when bubble is on left side of touchpoint
+  ): void {
+    ctx.beginPath();
+
+    const tailY = markerCoordinates.y; // Align tail with marker center
+
+    if (isLeftSide) {
+      // When bubble is on LEFT side of touchpoint, tail points RIGHT
+      // Start from top-left corner
+      ctx.moveTo(x + borderRadius, y);
+
+      // Top edge and top-right corner
+      ctx.lineTo(x + width - borderRadius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + borderRadius);
+
+      // Right edge with tail
+      const bubbleRight = x + width;
+      const tailYClamped = Math.max(y + borderRadius + tailSize, Math.min(tailY, y + height - borderRadius - tailSize));
+
+      // Draw right edge down to tail start
+      ctx.lineTo(bubbleRight, tailYClamped - tailSize);
+      // Draw tail pointing right to marker
+      ctx.lineTo(bubbleRight + tailSize, tailYClamped);
+      ctx.lineTo(bubbleRight, tailYClamped + tailSize);
+
+      // Continue right edge and bottom-right corner
+      ctx.lineTo(bubbleRight, y + height - borderRadius);
+      ctx.quadraticCurveTo(bubbleRight, y + height, bubbleRight - borderRadius, y + height);
+
+      // Bottom edge and bottom-left corner
+      ctx.lineTo(x + borderRadius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - borderRadius);
+
+      // Left edge and close path
+      ctx.lineTo(x, y + borderRadius);
+      ctx.quadraticCurveTo(x, y, x + borderRadius, y);
+
+    } else {
+      // When bubble is on RIGHT side of touchpoint, tail points LEFT
+      // Start from top-left corner
+      ctx.moveTo(x + borderRadius, y);
+
+      // Top edge and top-right corner
+      ctx.lineTo(x + width - borderRadius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + borderRadius);
+
+      // Right edge and bottom-right corner
+      ctx.lineTo(x + width, y + height - borderRadius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - borderRadius, y + height);
+
+      // Bottom edge and bottom-left corner
+      ctx.lineTo(x + borderRadius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - borderRadius);
+
+      // Left edge with tail
+      const tailYClamped = Math.max(y + borderRadius + tailSize, Math.min(tailY, y + height - borderRadius - tailSize));
+
+      ctx.lineTo(x, tailYClamped + tailSize);
+      // Draw tail pointing left to marker
+      ctx.lineTo(x - tailSize, tailYClamped);
+      ctx.lineTo(x, tailYClamped - tailSize);
+
+      // Continue left edge and close path
+      ctx.lineTo(x, y + borderRadius);
+      ctx.quadraticCurveTo(x, y, x + borderRadius, y);
+    }
+
+    ctx.closePath();
+    ctx.fill();
   }
 
   /**

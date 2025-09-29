@@ -307,20 +307,16 @@ async function captureScreenshot(coordinates: {
 
 // Show annotation dialog
 function showAnnotationDialog(coordinates: { x: number; y: number }): void {
-  console.log('🔥 SNAP-INSIGHTS: showAnnotationDialog called!', coordinates);
 
   // Check existing dialogs before creating new one
   const existingDialogs = document.querySelectorAll('.insight-clip-input-dialog');
-  console.log('🔥 SNAP-INSIGHTS: Existing dialogs before creation:', existingDialogs.length);
 
   // Remove any existing dialogs (ensure only one modal at a time)
   if (currentAnnotationDialog) {
-    console.log('🔥 SNAP-INSIGHTS: Removing existing currentAnnotationDialog');
     currentAnnotationDialog.remove();
     currentAnnotationDialog = null;
   }
   if (currentTranscriptionDialog) {
-    console.log('🔥 SNAP-INSIGHTS: Removing existing currentTranscriptionDialog');
     stopTranscription();
     currentTranscriptionDialog.remove();
     currentTranscriptionDialog = null;
@@ -329,9 +325,7 @@ function showAnnotationDialog(coordinates: { x: number; y: number }): void {
   // Force remove any orphaned dialogs
   const allExistingDialogs = document.querySelectorAll('.insight-clip-input-dialog');
   if (allExistingDialogs.length > 0) {
-    console.log('🔥 SNAP-INSIGHTS: Found', allExistingDialogs.length, 'orphaned dialogs, removing them');
     allExistingDialogs.forEach((dialog, index) => {
-      console.log('🔥 SNAP-INSIGHTS: Removing orphaned dialog', index);
       dialog.remove();
     });
   }
@@ -377,7 +371,6 @@ function showAnnotationDialog(coordinates: { x: number; y: number }): void {
 
   // Verify dialog was added correctly
   const dialogsAfterCreation = document.querySelectorAll('.insight-clip-input-dialog');
-  console.log('🔥 SNAP-INSIGHTS: Dialogs after creation:', dialogsAfterCreation.length);
 
   // Focus textarea
   const textarea = dialog.querySelector(
@@ -390,28 +383,11 @@ function showAnnotationDialog(coordinates: { x: number; y: number }): void {
   const cancelButton = dialog.querySelector('#cancel-annotation');
   const closeButton = dialog.querySelector('#close-dialog');
 
-  console.log('🔥 SNAP-INSIGHTS: Dialog elements found:', {
-    saveButton: !!saveButton,
-    saveButtonTag: saveButton?.tagName,
-    saveButtonId: saveButton?.id,
-    cancelButton: !!cancelButton,
-    closeButton: !!closeButton,
-    textarea: !!textarea,
-    dialogChildrenCount: dialog.children.length
-  });
 
-  // Additional debugging - check all buttons in the dialog
-  const allButtons = dialog.querySelectorAll('button');
-  console.log('🔥 SNAP-INSIGHTS: All buttons in dialog:', Array.from(allButtons).map(btn => ({
-    id: btn.id,
-    text: btn.textContent,
-    tagName: btn.tagName
-  })));
 
   // Event listeners using direct element references
   if (closeButton) {
     closeButton.addEventListener('click', (e) => {
-      console.log('🔥 SNAP-INSIGHTS: Close button clicked!');
       e.preventDefault();
       e.stopPropagation();
       dialog.remove();
@@ -421,7 +397,6 @@ function showAnnotationDialog(coordinates: { x: number; y: number }): void {
 
   if (cancelButton) {
     cancelButton.addEventListener('click', (e) => {
-      console.log('🔥 SNAP-INSIGHTS: Cancel button clicked!');
       e.preventDefault();
       e.stopPropagation();
       dialog.remove();
@@ -430,89 +405,58 @@ function showAnnotationDialog(coordinates: { x: number; y: number }): void {
   }
 
   if (saveButton) {
-    console.log('🔥 SNAP-INSIGHTS: Adding event listener to save button');
 
     // Use both click and mousedown events as backup
     const handleSave = async (e: Event) => {
-      console.log('🔥 SNAP-INSIGHTS: Save annotation button clicked!', {
-        target: e.target,
-        currentTarget: e.currentTarget,
-        dialogExists: !!dialog,
-        dialogParent: !!dialog.parentNode
-      });
 
       e.preventDefault();
       e.stopPropagation();
 
       const text = textarea.value.trim();
-      console.log('🔥 SNAP-INSIGHTS: Annotation text:', text);
 
       try {
         // Remove dialog immediately to prevent it from being in the screenshot
-        console.log('🔥 SNAP-INSIGHTS: Removing dialog...', {
-          dialogExists: !!dialog,
-          dialogParent: !!dialog.parentNode,
-          dialogClass: dialog.className
-        });
 
         if (dialog && dialog.parentNode) {
-          console.log('🔥 SNAP-INSIGHTS: Before removal - dialog exists in DOM:', document.body.contains(dialog));
 
           // Try both removal methods for reliability
           try {
             dialog.remove();
-            console.log('🔥 SNAP-INSIGHTS: Dialog.remove() called successfully');
           } catch (error) {
-            console.warn('🔥 SNAP-INSIGHTS: Dialog.remove() failed, trying parentNode.removeChild:', error);
             try {
               dialog.parentNode.removeChild(dialog);
-              console.log('🔥 SNAP-INSIGHTS: parentNode.removeChild() called successfully');
             } catch (error2) {
-              console.error('🔥 SNAP-INSIGHTS: Both removal methods failed:', error2);
             }
           }
 
           // Double-check if dialog is actually removed
           setTimeout(() => {
-            console.log('🔥 SNAP-INSIGHTS: After removal - dialog still in DOM:', document.body.contains(dialog));
             const allDialogs = document.querySelectorAll('.insight-clip-input-dialog');
-            console.log('🔥 SNAP-INSIGHTS: Total dialogs in DOM:', allDialogs.length);
 
             // Force remove if still present
             if (document.body.contains(dialog)) {
-              console.warn('🔥 SNAP-INSIGHTS: Dialog still present, attempting force removal');
               try {
                 dialog.style.display = 'none';
                 dialog.parentNode?.removeChild(dialog);
-                console.log('🔥 SNAP-INSIGHTS: Force removal successful');
               } catch (error) {
-                console.error('🔥 SNAP-INSIGHTS: Force removal failed:', error);
               }
             }
           }, 50);
 
         } else {
-          console.warn('🔥 SNAP-INSIGHTS: Dialog or dialog.parentNode is null!');
         }
 
         currentAnnotationDialog = null;
-        console.log('🔥 SNAP-INSIGHTS: Dialog removed and currentAnnotationDialog set to null');
 
         // Always capture screenshot with annotation, even if text is empty
         // Wait a moment for dialog to be completely removed from DOM
         await new Promise((resolve) => setTimeout(resolve, 100));
-        console.log(
-          '🔥 SNAP-INSIGHTS: Capturing screenshot with annotation...'
-        );
         await captureScreenshotWithAnnotation(coordinates, text);
-        console.log('🔥 SNAP-INSIGHTS: Screenshot capture completed');
       } catch (error) {
-        console.error('🔥 SNAP-INSIGHTS: Error in save annotation:', error);
         // Even if there's an error, try to remove the dialog
         if (dialog && dialog.parentNode) {
           dialog.remove();
           currentAnnotationDialog = null;
-          console.log('🔥 SNAP-INSIGHTS: Dialog removed in error handler');
         }
       }
     };
@@ -520,13 +464,11 @@ function showAnnotationDialog(coordinates: { x: number; y: number }): void {
     // Add both click and mousedown event listeners
     saveButton.addEventListener('click', handleSave, true);
     saveButton.addEventListener('mousedown', (e) => {
-      console.log('🔥 SNAP-INSIGHTS: Save button mousedown detected');
     });
 
     // Also try adding a direct onclick handler as fallback
     (saveButton as HTMLButtonElement).onclick = handleSave;
   } else {
-    console.error('🔥 SNAP-INSIGHTS: Save button not found!');
   }
 
   // Close on escape key
@@ -546,11 +488,9 @@ async function captureScreenshotWithAnnotation(
   annotation: string
 ): Promise<void> {
   try {
-    console.log('🔥 SNAP-INSIGHTS: Starting captureScreenshotWithAnnotation');
 
     // Check dialogs before showing marker
     const dialogsBeforeMarker = document.querySelectorAll('.insight-clip-input-dialog');
-    console.log('🔥 SNAP-INSIGHTS: Dialogs before showing marker:', dialogsBeforeMarker.length);
 
     // Show the touchpoint marker at click location BEFORE taking screenshot
     // This ensures the touchpoint is visible in the captured image (like journey mode)
@@ -558,17 +498,10 @@ async function captureScreenshotWithAnnotation(
 
     // Check dialogs after showing marker
     const dialogsAfterMarker = document.querySelectorAll('.insight-clip-input-dialog');
-    console.log('🔥 SNAP-INSIGHTS: Dialogs after showing marker:', dialogsAfterMarker.length);
 
     // Wait a brief moment for the marker to render
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    console.log('🔥 SNAP-INSIGHTS: Sending CAPTURE_SCREENSHOT message with data:', {
-      coordinates,
-      selectedIcon,
-      annotation,
-      annotationLength: annotation ? annotation.length : 0
-    });
 
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
@@ -579,11 +512,6 @@ async function captureScreenshotWithAnnotation(
       },
     });
 
-    console.log('🔥 SNAP-INSIGHTS: CAPTURE_SCREENSHOT response:', {
-      success: response.success,
-      hasDataUrl: !!response.dataUrl,
-      error: response.error
-    });
 
     // Remove the marker after screenshot is captured
     setTimeout(() => {
@@ -693,21 +621,17 @@ async function showTranscriptionDialog(captureCoordinates: {
   x: number;
   y: number;
 }): Promise<void> {
-  console.log('🔥 SNAP-INSIGHTS: showTranscriptionDialog called!', captureCoordinates);
 
   // Check existing dialogs before creating new one
   const existingDialogs = document.querySelectorAll('.insight-clip-input-dialog');
-  console.log('🔥 SNAP-INSIGHTS: Existing dialogs before transcription creation:', existingDialogs.length);
 
   // Remove any existing dialogs (ensure only one modal at a time)
   if (currentTranscriptionDialog) {
-    console.log('🔥 SNAP-INSIGHTS: Removing existing currentTranscriptionDialog');
     stopTranscription();
     currentTranscriptionDialog.remove();
     currentTranscriptionDialog = null;
   }
   if (currentAnnotationDialog) {
-    console.log('🔥 SNAP-INSIGHTS: Removing existing currentAnnotationDialog from transcription');
     currentAnnotationDialog.remove();
     currentAnnotationDialog = null;
   }
@@ -715,9 +639,7 @@ async function showTranscriptionDialog(captureCoordinates: {
   // Force remove any orphaned dialogs
   const allExistingDialogs = document.querySelectorAll('.insight-clip-input-dialog');
   if (allExistingDialogs.length > 0) {
-    console.log('🔥 SNAP-INSIGHTS: Found', allExistingDialogs.length, 'orphaned transcription dialogs, removing them');
     allExistingDialogs.forEach((dialog, index) => {
-      console.log('🔥 SNAP-INSIGHTS: Removing orphaned transcription dialog', index);
       dialog.remove();
     });
   }
@@ -769,7 +691,6 @@ async function showTranscriptionDialog(captureCoordinates: {
 
   // Verify dialog was added correctly
   const dialogsAfterTranscriptionCreation = document.querySelectorAll('.insight-clip-input-dialog');
-  console.log('🔥 SNAP-INSIGHTS: Dialogs after transcription creation:', dialogsAfterTranscriptionCreation.length);
 
   // Event listeners
   const textDisplay = dialog.querySelector(
@@ -788,29 +709,11 @@ async function showTranscriptionDialog(captureCoordinates: {
     '#close-transcription-dialog'
   );
 
-  console.log('🔥 SNAP-INSIGHTS: Transcription dialog elements found:', {
-    saveButton: !!saveTranscriptionButton,
-    saveButtonTag: saveTranscriptionButton?.tagName,
-    saveButtonId: saveTranscriptionButton?.id,
-    cancelButton: !!cancelTranscriptionButton,
-    closeButton: !!closeTranscriptionButton,
-    textDisplay: !!textDisplay,
-    recordingIndicator: !!recordingIndicator,
-    dialogChildrenCount: dialog.children.length
-  });
 
-  // Additional debugging - check all buttons in the transcription dialog
-  const allTranscriptionButtons = dialog.querySelectorAll('button');
-  console.log('🔥 SNAP-INSIGHTS: All buttons in transcription dialog:', Array.from(allTranscriptionButtons).map(btn => ({
-    id: btn.id,
-    text: btn.textContent,
-    tagName: btn.tagName
-  })));
 
   // Start recording immediately when dialog opens
   const startRecording = async () => {
     try {
-      console.log('🔥 SNAP-INSIGHTS: Starting transcription recording...');
 
       // Use Web Speech API for real-time transcription
       const SpeechRecognition =
@@ -818,20 +721,15 @@ async function showTranscriptionDialog(captureCoordinates: {
         (window as any).webkitSpeechRecognition;
 
       if (SpeechRecognition) {
-        console.log(
-          '🔥 SNAP-INSIGHTS: Web Speech API available, initializing...'
-        );
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'en-US';
 
         recognition.onstart = () => {
-          console.log('🔥 SNAP-INSIGHTS: Speech recognition started');
         };
 
         recognition.onresult = (event: any) => {
-          console.log('🔥 SNAP-INSIGHTS: Speech recognition result received');
           let finalTranscript = '';
           let interimTranscript = '';
 
@@ -852,17 +750,9 @@ async function showTranscriptionDialog(captureCoordinates: {
             finalTranscript +
             interimTranscript;
           transcriptionText = textDisplay.value;
-          console.log(
-            '🔥 SNAP-INSIGHTS: Updated transcription text:',
-            transcriptionText
-          );
         };
 
         recognition.onerror = (event: any) => {
-          console.error(
-            '🔥 SNAP-INSIGHTS: Speech recognition error:',
-            event.error
-          );
           // Hide recording indicator on error
           if (recordingIndicator) {
             recordingIndicator.style.display = 'none';
@@ -871,26 +761,20 @@ async function showTranscriptionDialog(captureCoordinates: {
         };
 
         recognition.onend = () => {
-          console.log('🔥 SNAP-INSIGHTS: Speech recognition ended');
           // Hide recording indicator when stopped
           if (recordingIndicator) {
             recordingIndicator.style.display = 'none';
           }
         };
 
-        console.log('🔥 SNAP-INSIGHTS: Starting speech recognition...');
         recognition.start();
         currentRecognition = recognition;
       } else {
-        console.log(
-          '🔥 SNAP-INSIGHTS: Web Speech API not available, using MediaRecorder fallback'
-        );
         // Fallback to MediaRecorder if Speech Recognition is not available
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
         currentMediaStream = stream;
-        console.log('🔥 SNAP-INSIGHTS: Got microphone access');
 
         const mediaRecorder = new MediaRecorder(stream);
         currentMediaRecorder = mediaRecorder;
@@ -916,7 +800,6 @@ async function showTranscriptionDialog(captureCoordinates: {
         mediaRecorder.start();
       }
     } catch (error) {
-      console.error('🔥 SNAP-INSIGHTS: Error accessing microphone:', error);
       // Hide recording indicator on error
       if (recordingIndicator) {
         recordingIndicator.style.display = 'none';
@@ -932,7 +815,6 @@ async function showTranscriptionDialog(captureCoordinates: {
   // Event listeners using direct element references
   if (closeTranscriptionButton) {
     closeTranscriptionButton.addEventListener('click', (e) => {
-      console.log('🔥 SNAP-INSIGHTS: Close transcription button clicked!');
       e.preventDefault();
       e.stopPropagation();
       stopTranscription();
@@ -943,7 +825,6 @@ async function showTranscriptionDialog(captureCoordinates: {
 
   if (cancelTranscriptionButton) {
     cancelTranscriptionButton.addEventListener('click', (e) => {
-      console.log('🔥 SNAP-INSIGHTS: Cancel transcription button clicked!');
       e.preventDefault();
       e.stopPropagation();
       stopTranscription();
@@ -953,94 +834,63 @@ async function showTranscriptionDialog(captureCoordinates: {
   }
 
   if (saveTranscriptionButton) {
-    console.log('🔥 SNAP-INSIGHTS: Adding event listener to save transcription button');
 
     // Use both click and mousedown events as backup
     const handleTranscriptionSave = async (e: Event) => {
-      console.log('🔥 SNAP-INSIGHTS: Save transcription button clicked!', {
-        target: e.target,
-        currentTarget: e.currentTarget,
-        dialogExists: !!dialog,
-        dialogParent: !!dialog.parentNode
-      });
 
       e.preventDefault();
       e.stopPropagation();
 
       const transcriptionToSave = textDisplay.value.trim() || transcriptionText;
-      console.log('🔥 SNAP-INSIGHTS: Transcription text:', transcriptionToSave);
 
       try {
         // Stop and remove dialog immediately to prevent it from being in the screenshot
-        console.log('🔥 SNAP-INSIGHTS: Stopping transcription and removing dialog...', {
-          dialogExists: !!dialog,
-          dialogParent: !!dialog.parentNode,
-          dialogClass: dialog.className
-        });
 
         stopTranscription();
 
         if (dialog && dialog.parentNode) {
-          console.log('🔥 SNAP-INSIGHTS: Before removal - transcription dialog exists in DOM:', document.body.contains(dialog));
 
           // Try both removal methods for reliability
           try {
             dialog.remove();
-            console.log('🔥 SNAP-INSIGHTS: Transcription dialog.remove() called successfully');
           } catch (error) {
-            console.warn('🔥 SNAP-INSIGHTS: Transcription dialog.remove() failed, trying parentNode.removeChild:', error);
             try {
               dialog.parentNode.removeChild(dialog);
-              console.log('🔥 SNAP-INSIGHTS: Transcription parentNode.removeChild() called successfully');
             } catch (error2) {
-              console.error('🔥 SNAP-INSIGHTS: Both transcription removal methods failed:', error2);
             }
           }
 
           // Double-check if dialog is actually removed
           setTimeout(() => {
-            console.log('🔥 SNAP-INSIGHTS: After removal - transcription dialog still in DOM:', document.body.contains(dialog));
             const allDialogs = document.querySelectorAll('.insight-clip-input-dialog');
-            console.log('🔥 SNAP-INSIGHTS: Total transcription dialogs in DOM:', allDialogs.length);
 
             // Force remove if still present
             if (document.body.contains(dialog)) {
-              console.warn('🔥 SNAP-INSIGHTS: Transcription dialog still present, attempting force removal');
               try {
                 dialog.style.display = 'none';
                 dialog.parentNode?.removeChild(dialog);
-                console.log('🔥 SNAP-INSIGHTS: Transcription force removal successful');
               } catch (error) {
-                console.error('🔥 SNAP-INSIGHTS: Transcription force removal failed:', error);
               }
             }
           }, 50);
 
         } else {
-          console.warn('🔥 SNAP-INSIGHTS: Transcription dialog or dialog.parentNode is null!');
         }
 
         currentTranscriptionDialog = null;
-        console.log('🔥 SNAP-INSIGHTS: Transcription dialog removed and currentTranscriptionDialog set to null');
 
         // Always capture screenshot with transcription, even if text is empty
         // Wait a moment for dialog to be completely removed from DOM
         await new Promise((resolve) => setTimeout(resolve, 100));
-        console.log(
-          '🔥 SNAP-INSIGHTS: Capturing screenshot with transcription...'
-        );
         await captureScreenshotWithTranscription(
           captureCoordinates,
           transcriptionToSave
         );
-        console.log('🔥 SNAP-INSIGHTS: Transcription screenshot capture completed');
       } catch (error) {
-        console.error('🔥 SNAP-INSIGHTS: Error in save transcription:', error);
         // Even if there's an error, try to remove the dialog
         if (dialog && dialog.parentNode) {
           dialog.remove();
           currentTranscriptionDialog = null;
-          console.log('🔥 SNAP-INSIGHTS: Transcription dialog removed in error handler');
         }
       }
     };
@@ -1048,13 +898,11 @@ async function showTranscriptionDialog(captureCoordinates: {
     // Add both click and mousedown event listeners
     saveTranscriptionButton.addEventListener('click', handleTranscriptionSave, true);
     saveTranscriptionButton.addEventListener('mousedown', (e) => {
-      console.log('🔥 SNAP-INSIGHTS: Save transcription button mousedown detected');
     });
 
     // Also try adding a direct onclick handler as fallback
     (saveTranscriptionButton as HTMLButtonElement).onclick = handleTranscriptionSave;
   } else {
-    console.error('🔥 SNAP-INSIGHTS: Save transcription button not found!');
   }
 
   // Close on escape key

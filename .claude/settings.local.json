@@ -5,7 +5,8 @@
       "Bash(npm run lint)",
       "Bash(npm run build:*)",
       "Bash(npm run type-check:*)",
-      "Bash(npm run test:e2e:headed:*)"
+      "Bash(npm run test:e2e:headed:*)",
+      "Bash(perl:*)"
     ],
     "deny": [],
     "ask": []

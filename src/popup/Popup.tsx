@@ -517,8 +517,7 @@ export const Popup: React.FC = () => {
         error: null,
       }));
 
-      // Optionally show a success notification
-      console.log('Journey collection saved successfully!');
+      // Journey collection saved successfully
     } catch (error) {
       setState((prev) => ({
         ...prev,

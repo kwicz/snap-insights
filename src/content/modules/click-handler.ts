@@ -72,27 +72,15 @@ export class ClickHandler {
    * Handle click events
    */
   private handleClick(event: MouseEvent): void {
-    console.log('🖱️ Click detected', {
-      isActive: this.isActive,
-      currentMode: this.currentMode,
-      isJourneyMode: this.currentMode === EXTENSION_MODES.JOURNEY,
-    });
 
     // Only handle clicks when extension is active
     if (!this.isActive) {
-      console.log('❌ Extension not active, ignoring click');
       return;
     }
 
     // Journey mode captures ANY click, other modes require Alt+Click
-    console.log('🔍 Mode check:', {
-      currentMode: this.currentMode,
-      EXTENSION_MODES_JOURNEY: EXTENSION_MODES.JOURNEY,
-      isMatch: this.currentMode === EXTENSION_MODES.JOURNEY,
-    });
 
     if (this.currentMode === EXTENSION_MODES.JOURNEY) {
-      console.log('🎯 Journey mode click - processing...');
       // For journey mode, capture screenshot before allowing the original action
       this.handleJourneyClick(event);
       return;
@@ -152,20 +140,10 @@ export class ClickHandler {
    * Handle journey mode clicks - capture screenshot before allowing original action
    */
   private handleJourneyClick(event: MouseEvent): void {
-    console.log(
-      '🎯 JOURNEY MODE CLICK DETECTED! User clicked on the page while journey mode is active!',
-      {
-        clientX: event.clientX,
-        clientY: event.clientY,
-        target: (event.target as HTMLElement)?.tagName,
-        timestamp: new Date().toISOString(),
-      }
-    );
 
     // Skip clicks on the extension's own sidebar
     const target = event.target as HTMLElement;
     if (target && target.closest('.snapinsights-sidebar')) {
-      console.log('🚫 Skipping click on extension sidebar');
       return;
     }
 
