@@ -547,7 +547,15 @@ export const Popup: React.FC = () => {
         <div className='app-icon'>
           <img src='../assets/icons/icon.png' alt='SnapInsights Extension Icon' />
         </div>
-        <h1 className='app-title' id='main-title'>SnapInsights</h1>
+        <div className='app-title-group'>
+          <h1 className='app-title' id='main-title'>SnapInsights</h1>
+          <div className='header-attribution'>
+            <span>Created by</span>
+            <a href='https://thegood.com/' target='_blank' rel='noopener noreferrer' className='header-logo-link'>
+              <TheGoodLogo />
+            </a>
+          </div>
+        </div>
       </header>
 
       <TabNav
@@ -779,15 +787,12 @@ export const Popup: React.FC = () => {
       </main>
 
       <footer className='footer-section' role='contentinfo'>
-        <small className='footer-text' aria-label='Usage instruction'>
-          {state.activeTab === 'moment' ? 'Alt + Click to Snap' : 'Alt + Click to capture journey moments'}
-        </small>
+        {state.activeTab === 'moment' && (
+          <div className='footer-text' aria-label='Usage instruction'>
+            Alt + Click to Snap
+          </div>
+        )}
       </footer>
-      {/* <div className='footer-container'>
-        <small className='footer-text'>
-          Powered by <TheGoodLogo />
-        </small>
-      </div> */}
     </div>
   );
 };

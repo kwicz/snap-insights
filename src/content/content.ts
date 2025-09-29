@@ -330,7 +330,7 @@ function showAnnotationDialog(coordinates: { x: number; y: number }): void {
     </div>
     <div style="padding: 20px; display: flex; gap: 12px; justify-content: flex-end;">
       <button id="cancel-annotation" style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer; font-family: inherit;">Cancel</button>
-      <button id="save-annotation" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit;">Save</button>
+      <button id="save-annotation" style="padding: 13px 14px 14px; background: #0277c0; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit;">Save</button>
     </div>
   `;
 
@@ -531,7 +531,7 @@ async function showTranscriptionDialog(captureCoordinates: {
     </div>
     <div style="padding: 20px; display: flex; gap: 12px; justify-content: flex-end;">
       <button id="cancel-transcription" style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer; font-family: inherit;">Cancel</button>
-      <button id="save-transcription" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit;">Save</button>
+      <button id="save-transcription" style="padding: 13px 14px 14px; background: #0277c0; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit;">Save</button>
     </div>
     <style>
       @keyframes pulse {

@@ -69,7 +69,7 @@ class SidebarManager {
   }
 
   /**
-   * Toggle sidebar dropdown state
+   * Toggle sidebar dropdown state (kept for potential programmatic use)
    */
   private toggleDropdown(): void {
     this.state.isExpanded = !this.state.isExpanded;
@@ -83,35 +83,47 @@ class SidebarManager {
   private updateDropdownState(): void {
     if (!this.container) return;
 
-    const dropdown = this.container.querySelector(
-      '.sidebar-dropdown'
-    ) as HTMLElement;
-    const iconButton = this.container.querySelector(
-      '.sidebar-icon-button'
-    ) as HTMLElement;
+    const modesContainer = this.container.querySelector('.sidebar-modes') as HTMLElement;
+    const divider = this.container.querySelector('.sidebar-divider') as HTMLElement;
+    const closeContainer = this.container.querySelector('.sidebar-close-container') as HTMLElement;
 
     if (this.state.isExpanded) {
-      // Show dropdown with slide down animation
-      if (dropdown) {
-        dropdown.style.display = 'block';
-        dropdown.style.animation = 'slideDown 0.3s ease-out forwards';
-      }
-      // Update icon button border radius when expanded
-      if (iconButton) {
-        iconButton.style.borderRadius = '12px 0 0 0';
-      }
+      // Calculate expanded height: icon (60px) + divider + 4 mode buttons + close button + padding
+      const expandedHeight = 60 + 8 + (4 * 44) + 44 + 44; // Approximately 292px
+
+      // Expand the sidebar with smooth animation
+      this.container.style.height = `${expandedHeight}px`;
+
+      // Fade in the hidden elements after a short delay
+      setTimeout(() => {
+        if (divider) {
+          divider.style.opacity = '1';
+        }
+        if (modesContainer) {
+          modesContainer.style.opacity = '1';
+        }
+        if (closeContainer) {
+          closeContainer.style.opacity = '1';
+        }
+      }, 150);
     } else {
-      // Hide dropdown with slide up animation
-      if (dropdown) {
-        dropdown.style.animation = 'slideUp 0.3s ease-in forwards';
-        setTimeout(() => {
-          dropdown.style.display = 'none';
-        }, 300);
+      // Fade out elements first
+      if (divider) {
+        divider.style.opacity = '0';
       }
-      // Update icon button border radius when collapsed
-      if (iconButton) {
-        iconButton.style.borderRadius = '12px 0 0 12px';
+      if (modesContainer) {
+        modesContainer.style.opacity = '0';
       }
+      if (closeContainer) {
+        closeContainer.style.opacity = '0';
+      }
+
+      // Collapse the sidebar after fade out
+      setTimeout(() => {
+        if (this.container) {
+          this.container.style.height = '60px';
+        }
+      }, 100);
     }
   }
 
@@ -203,109 +215,148 @@ class SidebarManager {
       this.state.activeMode
     );
 
-    // Create container
+    // Create main container that will stretch
     this.container = document.createElement('div');
     this.container.className = 'snapinsights-sidebar';
     this.container.style.cssText = `
       position: fixed;
       top: 150px;
       right: 0;
+      width: 60px;
+      background: #0277c0;
+      border-radius: 12px 0 0 12px;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
       z-index: 999999;
       pointer-events: auto;
       font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+      overflow: hidden;
+      transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      height: 60px;
     `;
 
-    // Create icon button (always visible)
+    // Create inner wrapper for all buttons
+    const buttonsWrapper = document.createElement('div');
+    buttonsWrapper.className = 'sidebar-buttons-wrapper';
+    buttonsWrapper.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    `;
+
+    // Create header button (always visible)
     const iconButton = document.createElement('button');
     iconButton.className = 'sidebar-icon-button';
     iconButton.style.cssText = `
-      width: 60px;
-      height: 60px;
+      width: 44px;
+      height: 44px;
       border: none;
-      border-radius: 14px 0 0 0;
-      background: #0277c0;
+      background: transparent;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
       transition: all 0.2s ease;
-      position: relative;
-      z-index: 2;
+      flex-shrink: 0;
     `;
 
-    const iconImg = document.createElement('img');
-    iconImg.src = chrome.runtime.getURL('assets/icons/icon.png');
-    iconImg.alt = 'SnapInsights';
-    iconImg.style.cssText = `
+    // Create icon container that will hold either logo or mode icon
+    const iconContainer = document.createElement('div');
+    iconContainer.className = 'sidebar-icon-container';
+    iconContainer.style.cssText = `
       width: 32px;
       height: 32px;
-      object-fit: contain;
-      filter: brightness(0) invert(1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     `;
 
-    iconButton.appendChild(iconImg);
-    iconButton.addEventListener('click', () => this.toggleDropdown());
-    // Remove hover effects to prevent gap
+    // Set initial icon based on active mode
+    this.updateHeaderIcon(iconContainer);
 
-    // Create dropdown content (initially hidden)
-    const dropdown = document.createElement('div');
-    dropdown.className = 'sidebar-dropdown';
-    dropdown.style.cssText = `
-      position: absolute;
-      top: 60px;
-      right: 0;
-      width: 60px;
-      background: #0277c0;
-      border-radius: 14px 0 0 14px;
-      box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.1);
-      padding: 16px 8px;
-      display: none;
-      transform-origin: top center;
-      box-sizing: border-box;
-      z-index: 1;
+    iconButton.appendChild(iconContainer);
+
+    // Add click handler to header button to toggle active mode
+    iconButton.addEventListener('click', () => {
+      if (this.state.activeMode) {
+        console.log('SnapInsights: Header button clicked, deactivating mode:', this.state.activeMode);
+        // If a mode is active, clicking the header button deactivates it
+        this.handleModeDeactivate();
+      }
+    });
+
+    buttonsWrapper.appendChild(iconButton);
+
+    // Create divider
+    const divider = document.createElement('div');
+    divider.className = 'sidebar-divider';
+    divider.style.cssText = `
+      width: 36px;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.2);
+      margin: 8px 0;
+      opacity: 0;
+      transition: opacity 0.3s ease;
     `;
+    buttonsWrapper.appendChild(divider);
 
-    // Create modes section for dropdown
-    const modes = document.createElement('div');
-    modes.className = 'sidebar-modes';
-    modes.style.cssText = `
+    // Create modes container for mode buttons
+    const modesContainer = document.createElement('div');
+    modesContainer.className = 'sidebar-modes';
+    modesContainer.style.cssText = `
       display: flex;
       flex-direction: column;
       gap: 8px;
       align-items: center;
+      width: 100%;
+      opacity: 0;
+      transition: opacity 0.3s ease;
     `;
 
     // Create mode buttons
     const modeConfigs = [
-      { mode: 'snap', title: 'Snap Mode', icon: this.getSnapIcon() },
+      { mode: 'snap', title: 'Snap', icon: this.getSnapIcon() },
       {
         mode: 'annotate',
-        title: 'Annotate Mode',
+        title: 'Annotate',
         icon: this.getAnnotateIcon(),
       },
       {
         mode: 'transcribe',
-        title: 'Transcribe Mode',
+        title: 'Transcribe',
         icon: this.getTranscribeIcon(),
       },
-      { mode: 'start', title: 'Start Journey Mode', icon: this.getStartIcon() },
+      { mode: 'start', title: 'Start Journey', icon: this.getStartIcon() },
     ];
 
     modeConfigs.forEach(({ mode, title, icon }) => {
       const button = this.createModeButton(mode as any, title, icon);
-      modes.appendChild(button);
+      modesContainer.appendChild(button);
     });
 
-    // Create footer with close button
-    const footer = document.createElement('div');
-    footer.className = 'sidebar-footer';
-    footer.style.cssText = 'margin-top: 16px;';
+    buttonsWrapper.appendChild(modesContainer);
+
+    // Create close button container
+    const closeButtonContainer = document.createElement('div');
+    closeButtonContainer.className = 'sidebar-close-container';
+    closeButtonContainer.style.cssText = `
+      margin-top: 12px;
+      margin-bottom: 16px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
 
     const closeButton = document.createElement('button');
+    closeButton.className = 'sidebar-close-button';
     closeButton.style.cssText = `
       width: 44px;
-      height: 32px;
+      height: 44px;
       border: none;
       border-radius: 6px;
       background: transparent;
@@ -338,43 +389,61 @@ class SidebarManager {
       closeButton.style.transform = 'scale(1)';
     });
 
-    footer.appendChild(closeButton);
-
-    // Assemble dropdown
-    dropdown.appendChild(modes);
-    dropdown.appendChild(footer);
+    closeButtonContainer.appendChild(closeButton);
+    buttonsWrapper.appendChild(closeButtonContainer);
 
     // Assemble sidebar
-    this.container.appendChild(iconButton);
-    this.container.appendChild(dropdown);
+    this.container.appendChild(buttonsWrapper);
 
-    // Add CSS animations for dropdown
+    // Hover-based menu opening
+    let hoverTimeout: number | null = null;
+
+    const handleMouseEnter = () => {
+      if (hoverTimeout) clearTimeout(hoverTimeout);
+      hoverTimeout = window.setTimeout(() => {
+        this.state.isExpanded = true;
+        this.updateDropdownState();
+      }, 200); // Small delay to prevent accidental triggers
+    };
+
+    const handleMouseLeave = () => {
+      if (hoverTimeout) clearTimeout(hoverTimeout);
+      hoverTimeout = window.setTimeout(() => {
+        this.state.isExpanded = false;
+        this.updateDropdownState();
+      }, 300); // Small delay before closing
+    };
+
+    this.container.addEventListener('mouseenter', handleMouseEnter);
+    this.container.addEventListener('mouseleave', handleMouseLeave);
+
+    // Add CSS for tooltips
     const style = document.createElement('style');
     style.textContent = `
-      @keyframes slideDown {
-        from {
-          transform: scaleY(0) translateY(-10px);
-          opacity: 0;
-        }
-        to {
-          transform: scaleY(1) translateY(0);
-          opacity: 1;
-        }
+      .sidebar-tooltip {
+        position: fixed;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, sans-serif;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: 1000000;
       }
-      
-      @keyframes slideUp {
-        from {
-          transform: scaleY(1) translateY(0);
-          opacity: 1;
-        }
-        to {
-          transform: scaleY(0) translateY(-10px);
-          opacity: 0;
-        }
-      }
-      
-      .sidebar-dropdown {
-        transform-origin: top center;
+
+      .sidebar-tooltip::after {
+        content: '';
+        position: absolute;
+        right: -4px;
+        top: 50%;
+        transform: translateY(-50%);
+        border-left: 4px solid rgba(0, 0, 0, 0.9);
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
       }
     `;
     document.head.appendChild(style);
@@ -394,7 +463,7 @@ class SidebarManager {
     }`;
     button.style.cssText = `
       width: 44px;
-      height: 36px;
+      height: 44px;
       border: none;
       border-radius: 6px;
       background: ${this.state.activeMode === mode ? 'white' : 'transparent'};
@@ -424,28 +493,90 @@ class SidebarManager {
     }
 
     button.appendChild(iconContainer);
-    button.title = title;
+
+    // Create tooltip
+    const tooltip = document.createElement('span');
+    tooltip.className = 'sidebar-tooltip';
+    tooltip.textContent = title;
+    button.appendChild(tooltip);
 
     // Add event listeners
     button.addEventListener('click', () => {
       this.handleModeSelect(mode);
-      // Close dropdown after selection
-      this.state.isExpanded = false;
-      this.updateDropdownState();
+      // Don't close dropdown immediately, let hover handling manage it
     });
-    button.addEventListener('mouseenter', () => {
+
+    // Tooltip positioning on hover
+    button.addEventListener('mouseenter', (e) => {
       if (this.state.activeMode !== mode) {
         button.style.background = 'rgba(255, 255, 255, 0.1)';
       }
       button.style.transform = 'scale(1.05)';
+
+      // Position tooltip to the left of the button
+      const rect = button.getBoundingClientRect();
+      tooltip.style.top = `${rect.top + rect.height / 2}px`;
+      tooltip.style.left = `${rect.left - 8}px`;
+      tooltip.style.transform = 'translateX(-100%) translateY(-50%)';
+      tooltip.style.opacity = '1';
     });
+
     button.addEventListener('mouseleave', () => {
       button.style.background =
         this.state.activeMode === mode ? 'white' : 'transparent';
       button.style.transform = 'scale(1)';
+      tooltip.style.opacity = '0';
     });
 
     return button;
+  }
+
+  private updateHeaderIcon(iconContainer: HTMLElement) {
+    // Clear existing content
+    iconContainer.innerHTML = '';
+
+    if (this.state.activeMode) {
+      // Show the active mode icon
+      let iconSvg = '';
+      switch (this.state.activeMode) {
+        case 'snap':
+          iconSvg = this.getSnapIcon();
+          break;
+        case 'annotate':
+          iconSvg = this.getAnnotateIcon();
+          break;
+        case 'transcribe':
+          iconSvg = this.getTranscribeIcon();
+          break;
+        case 'start':
+          iconSvg = this.getSaveIcon(); // Show save icon when journey is active
+          break;
+      }
+
+      iconContainer.innerHTML = iconSvg;
+      const svg = iconContainer.querySelector('svg');
+      if (svg) {
+        svg.style.cssText = `
+          width: 100%;
+          height: 100%;
+          stroke: white;
+          fill: none;
+          stroke-width: 1.5;
+        `;
+      }
+    } else {
+      // Show SnapInsights logo when no mode is active
+      const iconImg = document.createElement('img');
+      iconImg.src = chrome.runtime.getURL('assets/icons/icon.png');
+      iconImg.alt = 'SnapInsights';
+      iconImg.style.cssText = `
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+        filter: brightness(0) invert(1);
+      `;
+      iconContainer.appendChild(iconImg);
+    }
   }
 
   private updateSidebarState() {
@@ -455,6 +586,12 @@ class SidebarManager {
       'SnapInsights: Updating sidebar state to mode:',
       this.state.activeMode
     );
+
+    // Update header icon
+    const iconContainer = this.container.querySelector('.sidebar-icon-container') as HTMLElement;
+    if (iconContainer) {
+      this.updateHeaderIcon(iconContainer);
+    }
     const buttons = this.container.querySelectorAll('.sidebar-mode-button');
     const modes = ['snap', 'annotate', 'transcribe', 'start'];
 
@@ -474,6 +611,7 @@ class SidebarManager {
       // Update start/save icon for journey mode
       if (mode === 'start') {
         const iconContainer = button.querySelector('div');
+        const tooltip = button.querySelector('.sidebar-tooltip') as HTMLElement;
         if (iconContainer) {
           // When journey mode is active, show save icon instead of pause
           iconContainer.innerHTML = isActive
@@ -488,12 +626,38 @@ class SidebarManager {
           }
         }
 
-        // Update button title when active
-        if (isActive) {
-          (button as HTMLElement).title = 'Save Journey';
+        // Update tooltip text when active
+        if (tooltip) {
+          tooltip.textContent = isActive ? 'Save Journey' : 'Start Journey';
         }
       }
     });
+  }
+
+  private async handleModeDeactivate() {
+    console.log('SnapInsights: Deactivating current mode:', this.state.activeMode);
+
+    // Save to storage to sync with popup
+    try {
+      await chrome.storage.local.set({ currentMode: null });
+    } catch (error) {
+      console.error('Failed to save mode deactivation:', error);
+    }
+
+    // Send message to background script to deactivate
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'DEACTIVATE_EXTENSION',
+      });
+
+      if (!response?.success) {
+        console.error('Failed to deactivate extension:', response?.error);
+      } else {
+        console.log('SnapInsights: Extension deactivated successfully');
+      }
+    } catch (error) {
+      console.error('Failed to communicate with background script:', error);
+    }
   }
 
   private async handleModeSelect(

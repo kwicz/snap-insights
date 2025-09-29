@@ -159,13 +159,48 @@ body {
   height: 48px;
 }
 
+.app-title-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  margin-left: 12px;
+}
+
 .app-title {
   font-family: 'League Spartan', sans-serif;
   font-size: 24px;
   font-weight: 800;
   color: #333;
-  margin: 0 12px;
-  text-align: center;
+  margin: 0;
+  text-align: left;
+  line-height: 1;
+}
+
+.header-attribution {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  font-size: 11px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.header-logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.header-logo-link:hover {
+  opacity: 0.7;
+}
+
+.header-attribution svg {
+  height: 12px;
+  width: auto;
 }
 
 .popup-body {
@@ -368,14 +403,27 @@ input:checked + .toggle-slider:before {
   align-items: center;
 }
 
+/* Footer Section */
+.footer-section {
+  text-align: center;
+  padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-top: auto;
+}
+
 .footer-text {
-  font-size: 12px;
+  font-size: 14px;
   color: #666;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 4px;
+  margin-bottom: 8px;
 }
+
 
 /* Loading State */
 .popup--loading {
