@@ -1,0 +1,423 @@
+{
+  "config": {
+    "configFile": "/Users/katylee/Documents/Projects/snap-insights/playwright.config.ts",
+    "rootDir": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e/helpers/global-setup.ts",
+    "globalTeardown": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e/helpers/global-teardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report"
+        }
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/Users/katylee/Documents/Projects/snap-insights/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chrome-extension",
+        "name": "chrome-extension",
+        "testDir": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "/Users/katylee/Documents/Projects/snap-insights/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chrome-extension-headless",
+        "name": "chrome-extension-headless",
+        "testDir": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "specs/annotation-modes.spec.ts",
+      "file": "specs/annotation-modes.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Annotation and Transcription Modes",
+          "file": "specs/annotation-modes.spec.ts",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should show annotation dialog in Annotate mode",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chrome-extension",
+                  "projectName": "chrome-extension",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5384,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at /Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts:112:29",
+                        "location": {
+                          "file": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts",
+                          "column": 29,
+                          "line": 112
+                        },
+                        "snippet": "  110 |\n  111 |       // Verify dialog appeared\n> 112 |       expect(dialogVisible).toBe(true);\n      |                             ^\n  113 |     } else {\n  114 |       console.log('No annotate button found, checking popup content');\n  115 |       const popupContent = await popupPage.content();"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts",
+                            "column": 29,
+                            "line": 112
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  110 |\n  111 |       // Verify dialog appeared\n> 112 |       expect(dialogVisible).toBe(true);\n      |                             ^\n  113 |     } else {\n  114 |       console.log('No annotate button found, checking popup content');\n  115 |       const popupContent = await popupPage.content();\n    at /Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts:112:29"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "Found annotate button, clicking it\n"
+                        },
+                        {
+                          "text": "Performing Alt+Click\n"
+                        },
+                        {
+                          "text": "Extension helper logs: []\n"
+                        },
+                        {
+                          "text": "All console logs: []\n"
+                        },
+                        {
+                          "text": "Page content after Alt+Click (truncated): <html><head></head><body><h1>Test Page</h1><p>Content for testing</p></body></html>\n"
+                        },
+                        {
+                          "text": "Content script status: {\n  hasContentScript: \u001b[33mfalse\u001b[39m,\n  hasActivation: \u001b[33mfalse\u001b[39m,\n  hasClickDetection: \u001b[33mfalse\u001b[39m\n}\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "Using fallback extension ID for testing\n"
+                        },
+                        {
+                          "text": "(node:86078) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+                        },
+                        {
+                          "text": "Using fallback extension ID for testing\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-29T20:03:58.689Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension/video-2.webm"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension/video-1.webm"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension/video.webm"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension/video-3.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts",
+                        "column": 29,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "fa37b041b19db8339434-368c8028a7a85284d370",
+              "file": "specs/annotation-modes.spec.ts",
+              "line": 9,
+              "column": 7
+            },
+            {
+              "title": "should show transcription dialog in Transcribe mode",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chrome-extension",
+                  "projectName": "chrome-extension",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3209,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [
+                        {
+                          "text": "Using fallback extension ID for testing\n"
+                        },
+                        {
+                          "text": "(node:86321) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+                        },
+                        {
+                          "text": "Using fallback extension ID for testing\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-29T20:04:04.908Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "fa37b041b19db8339434-ae70fb97ab639e35e2d4",
+              "file": "specs/annotation-modes.spec.ts",
+              "line": 126,
+              "column": 7
+            },
+            {
+              "title": "should show annotation dialog in Annotate mode",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chrome-extension-headless",
+                  "projectName": "chrome-extension-headless",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 3050,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at /Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts:112:29",
+                        "location": {
+                          "file": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts",
+                          "column": 29,
+                          "line": 112
+                        },
+                        "snippet": "  110 |\n  111 |       // Verify dialog appeared\n> 112 |       expect(dialogVisible).toBe(true);\n      |                             ^\n  113 |     } else {\n  114 |       console.log('No annotate button found, checking popup content');\n  115 |       const popupContent = await popupPage.content();"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts",
+                            "column": 29,
+                            "line": 112
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  110 |\n  111 |       // Verify dialog appeared\n> 112 |       expect(dialogVisible).toBe(true);\n      |                             ^\n  113 |     } else {\n  114 |       console.log('No annotate button found, checking popup content');\n  115 |       const popupContent = await popupPage.content();\n    at /Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts:112:29"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "Found annotate button, clicking it\n"
+                        },
+                        {
+                          "text": "Performing Alt+Click\n"
+                        },
+                        {
+                          "text": "Extension helper logs: []\n"
+                        },
+                        {
+                          "text": "All console logs: []\n"
+                        },
+                        {
+                          "text": "Page content after Alt+Click (truncated): <html><head></head><body><h1>Test Page</h1><p>Content for testing</p></body></html>\n"
+                        },
+                        {
+                          "text": "Content script status: {\n  hasContentScript: \u001b[33mfalse\u001b[39m,\n  hasActivation: \u001b[33mfalse\u001b[39m,\n  hasClickDetection: \u001b[33mfalse\u001b[39m\n}\n"
+                        }
+                      ],
+                      "stderr": [
+                        {
+                          "text": "Using fallback extension ID for testing\n"
+                        },
+                        {
+                          "text": "(node:86409) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+                        },
+                        {
+                          "text": "Using fallback extension ID for testing\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-29T20:04:08.841Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension-headless/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension-headless/video-3.webm"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension-headless/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/katylee/Documents/Projects/snap-insights/test-results/specs-annotation-modes-Ann-0d820-ion-dialog-in-Annotate-mode-chrome-extension-headless/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/katylee/Documents/Projects/snap-insights/tests/e2e/specs/annotation-modes.spec.ts",
+                        "column": 29,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "fa37b041b19db8339434-561eae2de6cc0733e8b5",
+              "file": "specs/annotation-modes.spec.ts",
+              "line": 9,
+              "column": 7
+            },
+            {
+              "title": "should show transcription dialog in Transcribe mode",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chrome-extension-headless",
+                  "projectName": "chrome-extension-headless",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1283,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [
+                        {
+                          "text": "Using fallback extension ID for testing\n"
+                        },
+                        {
+                          "text": "(node:86478) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+                        },
+                        {
+                          "text": "Using fallback extension ID for testing\n"
+                        }
+                      ],
+                      "retry": 0,
+                      "startTime": "2025-09-29T20:04:12.252Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "fa37b041b19db8339434-23c51625a19f7d91a3b3",
+              "file": "specs/annotation-modes.spec.ts",
+              "line": 126,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-09-29T20:03:58.438Z",
+    "duration": 15227.004,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}
