@@ -193,7 +193,12 @@ export class CaptureService {
 
       if (!response.success || !response.data?.dataUrl) {
         // For journey mode, don't show error notifications to avoid interrupting flow
-        contentLogger.error('Journey screenshot failed:', response.error);
+        // Suppress rate limiting errors to keep Extensions errors clean
+        if (response.error?.includes('wait a moment before taking another screenshot')) {
+          contentLogger.info('Journey screenshot rate limited');
+        } else {
+          contentLogger.error('Journey screenshot failed:', response.error);
+        }
         if (onComplete) onComplete();
         return;
       }

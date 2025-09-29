@@ -182,7 +182,13 @@ async function captureJourneyScreenshot(coordinates: {
     if (response.success) {
       console.log('✅ Journey screenshot captured successfully');
     } else {
-      console.error('❌ Journey screenshot failed:', response.error);
+      // Don't show rate limiting errors to avoid cluttering Extensions errors
+      if (response.error?.includes('wait a moment before taking another screenshot')) {
+        // Silently handle rate limiting - user will notice from visual feedback
+        console.log('⏱️ Screenshot rate limited');
+      } else {
+        console.error('❌ Journey screenshot failed:', response.error);
+      }
     }
   } catch (error) {
     console.error('❌ Journey screenshot error:', error);

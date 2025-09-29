@@ -89,6 +89,16 @@ export class JourneyService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Handle Chrome storage quota errors silently to avoid cluttering Extensions errors
+      if (errorMessage.includes('kQuotaBytes quota exceeded') || errorMessage.includes('QuotaExceededError')) {
+        backgroundLogger.info('Journey screenshot storage quota exceeded - user taking screenshots too quickly');
+        return {
+          success: false,
+          error: 'Storage temporarily unavailable - please wait a moment',
+        };
+      }
+
       backgroundLogger.error('Failed to add journey screenshot:', error);
 
       return {

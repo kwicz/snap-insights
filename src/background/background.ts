@@ -628,7 +628,14 @@ chrome.runtime.onMessage.addListener(
 
                   await addJourneyScreenshot(screenshotData, captureData.elementInfo);
                 } catch (journeyError) {
-                  backgroundLogger.error('Failed to add journey screenshot:', journeyError);
+                  const journeyErrorMessage = journeyError instanceof Error ? journeyError.message : 'Unknown error';
+
+                  // Handle Chrome storage quota errors silently to avoid cluttering Extensions errors
+                  if (journeyErrorMessage.includes('kQuotaBytes quota exceeded') || journeyErrorMessage.includes('QuotaExceededError')) {
+                    backgroundLogger.info('Journey screenshot storage quota exceeded - user taking screenshots too quickly');
+                  } else {
+                    backgroundLogger.error('Failed to add journey screenshot:', journeyError);
+                  }
                 }
               }
               sendResponse(result);
