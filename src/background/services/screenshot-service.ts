@@ -221,36 +221,7 @@ export class ScreenshotService {
     settings: MarkerColorSettings
   ): Promise<void> {
     const { x, y } = coordinates;
-    const { size, color, opacity } = settings;
-
-    // Add shadow for better visibility
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 2;
-
-    // Set drawing properties
-    ctx.globalAlpha = opacity;
-    ctx.fillStyle = color;
-
-    // Draw circular marker
-    ctx.beginPath();
-    ctx.arc(x, y, size / 2, 0, 2 * Math.PI);
-    ctx.fill();
-
-    // Reset shadow for border
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-
-    // Draw white border for contrast
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(x, y, size / 2, 0, 2 * Math.PI);
-    ctx.stroke();
+    const { size } = settings;
 
     // Try to load and draw icon (service worker compatible)
     try {
@@ -263,7 +234,15 @@ export class ScreenshotService {
       const iconBlob = await iconResponse.blob();
       const iconImg = await createImageBitmap(iconBlob);
 
-      const iconSize = size * 0.6;
+      // Draw icon at full size (64px as designed)
+      const iconSize = 64;
+
+      // Add shadow for better visibility
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+
       ctx.globalAlpha = 1;
       ctx.drawImage(
         iconImg,
@@ -273,8 +252,33 @@ export class ScreenshotService {
         iconSize
       );
 
+      // Reset shadow
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+
     } catch (error) {
-      // Icon loading failed, marker circle is already drawn
+      backgroundLogger.warn('Failed to load icon, drawing fallback marker:', error);
+
+      // Fallback: draw a simple circle with white border
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+
+      // Draw white circle as fallback
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(x, y, size / 2, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Reset shadow
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
     }
 
     // Reset alpha

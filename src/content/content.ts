@@ -162,6 +162,12 @@ async function captureJourneyScreenshot(coordinates: {
   try {
     console.log('📸 Capturing journey screenshot...');
 
+    // Check if extension context is valid
+    if (!isExtensionContextValid()) {
+      console.error('❌ Extension context invalidated - please reload the page');
+      return;
+    }
+
     // Show the snap icon at click location BEFORE taking screenshot
     // This ensures the icon is visible in the captured image
     const marker = showPersistentClickFeedback(coordinates);
@@ -212,6 +218,17 @@ function showPersistentClickFeedback(coordinates: {
 }): HTMLElement {
   const marker = document.createElement('div');
   marker.className = 'snapinsights-click-marker';
+
+  // Check if extension context is valid before accessing chrome.runtime
+  let iconUrl = '';
+  if (isExtensionContextValid()) {
+    try {
+      iconUrl = chrome.runtime.getURL(`assets/icons/touchpoint-${selectedIcon}.png`);
+    } catch (error) {
+      console.error('Failed to get icon URL:', error);
+    }
+  }
+
   marker.style.cssText = `
     position: fixed;
     left: ${coordinates.x - 32}px;
@@ -220,9 +237,7 @@ function showPersistentClickFeedback(coordinates: {
     height: 64px;
     pointer-events: none;
     z-index: 999999;
-    background-image: url('${chrome.runtime.getURL(
-      `assets/icons/touchpoint-${selectedIcon}.png`
-    )}');
+    ${iconUrl ? `background-image: url('${iconUrl}');` : ''}
     background-size: contain;
     background-repeat: no-repeat;
   `;
@@ -234,6 +249,17 @@ function showPersistentClickFeedback(coordinates: {
 // Show visual feedback at click location
 function showClickFeedback(coordinates: { x: number; y: number }): void {
   const marker = document.createElement('div');
+
+  // Check if extension context is valid before accessing chrome.runtime
+  let iconUrl = '';
+  if (isExtensionContextValid()) {
+    try {
+      iconUrl = chrome.runtime.getURL(`assets/icons/touchpoint-${selectedIcon}.png`);
+    } catch (error) {
+      console.error('Failed to get icon URL:', error);
+    }
+  }
+
   marker.style.cssText = `
     position: fixed;
     left: ${coordinates.x - 32}px;
@@ -242,9 +268,7 @@ function showClickFeedback(coordinates: { x: number; y: number }): void {
     height: 64px;
     pointer-events: none;
     z-index: 999999;
-    background-image: url('${chrome.runtime.getURL(
-      `assets/icons/touchpoint-${selectedIcon}.png`
-    )}');
+    ${iconUrl ? `background-image: url('${iconUrl}');` : ''}
     background-size: contain;
     background-repeat: no-repeat;
     animation: fadeInOut 1s ease-in-out;
@@ -280,6 +304,12 @@ async function captureScreenshot(coordinates: {
   y: number;
 }): Promise<void> {
   try {
+    // Check if extension context is valid
+    if (!isExtensionContextValid()) {
+      console.error('❌ Extension context invalidated - please reload the page');
+      return;
+    }
+
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
       data: {
@@ -488,6 +518,12 @@ async function captureScreenshotWithAnnotation(
   annotation: string
 ): Promise<void> {
   try {
+    // Check if extension context is valid
+    if (!isExtensionContextValid()) {
+      console.error('❌ Extension context invalidated - please reload the page');
+      return;
+    }
+
     // Debug: Log coordinates and screen info
     console.log('🔧 ANNOTATION CAPTURE DEBUG:', {
       coordinates,
@@ -950,6 +986,12 @@ async function captureScreenshotWithTranscription(
   transcription: string
 ): Promise<void> {
   try {
+    // Check if extension context is valid
+    if (!isExtensionContextValid()) {
+      console.error('❌ Extension context invalidated - please reload the page');
+      return;
+    }
+
     // Show the touchpoint marker at click location BEFORE taking screenshot
     // This ensures the touchpoint is visible in the captured image (like journey mode)
     const marker = showPersistentClickFeedback(coordinates);

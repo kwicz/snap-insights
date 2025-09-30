@@ -282,14 +282,9 @@ class SidebarManager {
 
     iconButton.appendChild(iconContainer);
 
-    // Add click handler to header button to toggle active mode
-    iconButton.addEventListener('click', () => {
-      if (this.state.activeMode) {
-        console.log('SnapInsights: Header button clicked, deactivating mode:', this.state.activeMode);
-        // If a mode is active, clicking the header button deactivates it
-        this.handleModeDeactivate();
-      }
-    });
+    // Make header button non-clickable
+    iconButton.style.cursor = 'default';
+    iconButton.style.pointerEvents = 'none';
 
     buttonsWrapper.appendChild(iconButton);
 
