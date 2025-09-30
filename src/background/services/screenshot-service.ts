@@ -63,7 +63,8 @@ export class ScreenshotService {
             dataUrl,
             captureData.coordinates,
             captureData.selectedIcon || 'blue',
-            annotationText
+            annotationText,
+            captureData.devicePixelRatio || 1
           );
         } catch (markerError) {
           backgroundLogger.warn(
@@ -142,7 +143,8 @@ export class ScreenshotService {
     dataUrl: string,
     coordinates: { x: number; y: number },
     selectedIcon: string = 'blue',
-    annotation?: string
+    annotation?: string,
+    devicePixelRatio: number = 1
   ): Promise<string> {
     return new Promise(async (resolve, reject) => {
       try {
@@ -164,19 +166,28 @@ export class ScreenshotService {
         // Draw original image
         ctx.drawImage(img, 0, 0);
 
+        // Scale coordinates by device pixel ratio
+        const scaledCoordinates = {
+          x: coordinates.x * devicePixelRatio,
+          y: coordinates.y * devicePixelRatio
+        };
+
         // Get marker settings from storage or use defaults
         const markerSettings = await this.getMarkerSettings();
 
         // Draw marker
-        await this.drawMarker(ctx, coordinates, selectedIcon, markerSettings);
+        await this.drawMarker(ctx, scaledCoordinates, selectedIcon, markerSettings);
 
         // Draw annotation if provided
         if (annotation) {
+          // Use the actual default marker size (40px) not the settings value
+          // The settings might return a scaled or incorrect value
+          const actualMarkerSize = 40;
           this.drawAnnotationText(
             ctx,
-            coordinates,
+            scaledCoordinates,
             annotation,
-            markerSettings.size
+            actualMarkerSize
           );
         }
 
@@ -271,7 +282,7 @@ export class ScreenshotService {
   }
 
   /**
-   * Draw annotation text in speech bubble
+   * Draw annotation text in speech bubble pointing to marker
    */
   private drawAnnotationText(
     ctx: OffscreenCanvasRenderingContext2D,
@@ -279,103 +290,98 @@ export class ScreenshotService {
     annotation: string,
     markerSize: number
   ): void {
-    // Get canvas dimensions to determine positioning
+    // Get canvas dimensions for bounds checking
     const canvasWidth = ctx.canvas.width;
+    const canvasHeight = ctx.canvas.height;
+
     // Set text properties with fallback fonts
     ctx.font =
       '500 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
-    // Determine if touchpoint is in right half of screen
-    const isRightHalf = coordinates.x > canvasWidth / 2;
-
-    // Calculate text position - left or right of marker based on screen position
-    let textX: number;
-    if (isRightHalf) {
-      // Position to the left of the touchpoint with more space
-      textX = coordinates.x - markerSize / 2 - 20;
-    } else {
-      // Position to the right of the touchpoint (original behavior)
-      textX = coordinates.x + markerSize / 2 + 12;
-    }
-
-    const textY = coordinates.y - markerSize / 2 - 85; // Move up by 85px (50 + 35)
-
     // Wrap text and calculate dimensions
-    const lines = this.wrapText(annotation, 200);
+    const maxTextWidth = 200;
+    const lines = this.wrapText(ctx, annotation, maxTextWidth);
     const lineHeight = 20;
     const padding = 16;
     const borderRadius = 12;
-    const tailSize = 6; // Smaller tail for closer positioning
+    const tailSize = 12; // Visible tail size
+    const gapFromMarker = 12; // Gap equals tail size for proper spacing
 
     const textWidth = Math.max(
       ...lines.map((line) => ctx.measureText(line).width)
     );
-    const textHeight = lines.length * lineHeight;
+    const bubbleWidth = Math.max(textWidth + padding * 2, 80); // Minimum width
+    const bubbleHeight = lines.length * lineHeight + padding * 2;
 
-    // Speech bubble dimensions - adjust X position for left-side placement
-    let bubbleX: number;
-    if (isRightHalf) {
-      // When on left side of touchpoint, bubble should extend further left
-      bubbleX = textX - textWidth - padding;
-    } else {
-      // Original behavior - bubble to the right
-      bubbleX = textX - padding;
+    // Calculate marker bounds (marker is centered at coordinates)
+    const markerRadius = markerSize / 2;
+    const markerTop = coordinates.y - markerRadius;
+    const markerBottom = coordinates.y + markerRadius;
+
+    // Calculate bubble position - position it above the marker
+    const bubbleBottom = markerTop - gapFromMarker;
+    const bubbleY = bubbleBottom - bubbleHeight;
+
+    // Center bubble horizontally over marker
+    let bubbleX = coordinates.x - bubbleWidth / 2;
+
+    // Keep bubble within canvas bounds with margin
+    const margin = 10;
+    bubbleX = Math.max(margin, Math.min(bubbleX, canvasWidth - bubbleWidth - margin));
+
+    // If bubble would go above canvas, position it below marker instead
+    const positionBelow = bubbleY < margin;
+    const finalBubbleY = positionBelow
+      ? markerBottom + gapFromMarker  // Position below the marker bottom edge
+      : bubbleY;
+
+    // Also check if bubble would go below canvas when positioned below marker
+    if (positionBelow && finalBubbleY + bubbleHeight > canvasHeight - margin) {
+      // Not enough space above or below - skip drawing to avoid clipping
+      return;
     }
 
-    const bubbleY = textY - padding;
-    const bubbleWidth = textWidth + padding * 2;
-    const bubbleHeight = textHeight + padding * 2;
+    // Text position
+    const textX = bubbleX + padding;
+    const textY = finalBubbleY + padding;
 
-    // Apply shadow before drawing speech bubble
+    // Apply shadow
     ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-    ctx.shadowBlur = 4;
+    ctx.shadowBlur = 8;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 2;
 
-    // Draw speech bubble with rounded rectangle + tail using primary blue
+    // Draw speech bubble
     ctx.fillStyle = COLORS.PRIMARY;
 
     this.drawSpeechBubble(
       ctx,
       bubbleX,
-      bubbleY,
+      finalBubbleY,
       bubbleWidth,
       bubbleHeight,
       borderRadius,
       tailSize,
       coordinates,
-      isRightHalf // Pass positioning info for tail direction
+      markerRadius,
+      positionBelow
     );
-
 
     // Reset shadow for text
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
 
-    // Draw text in white - adjust alignment for left-side placement
+    // Draw text
     ctx.fillStyle = '#ffffff';
-
-    if (isRightHalf) {
-      // When bubble is on left side, align text to right within bubble
-      ctx.textAlign = 'right';
-      lines.forEach((line, index) => {
-        ctx.fillText(line, textX, textY + index * lineHeight);
-      });
-    } else {
-      // Original behavior - left aligned text
-      ctx.textAlign = 'left';
-      lines.forEach((line, index) => {
-        ctx.fillText(line, textX, textY + index * lineHeight);
-      });
-    }
+    lines.forEach((line, index) => {
+      ctx.fillText(line, textX, textY + index * lineHeight);
+    });
   }
 
   /**
-   * Draw speech bubble shape with rounded corners and tail
+   * Draw speech bubble with tail pointing to marker edge
    */
   private drawSpeechBubble(
     ctx: OffscreenCanvasRenderingContext2D,
@@ -386,46 +392,51 @@ export class ScreenshotService {
     borderRadius: number,
     tailSize: number,
     markerCoordinates: { x: number; y: number },
-    isLeftSide: boolean = false // True when bubble is on left side of touchpoint
+    markerRadius: number,
+    tailAtTop: boolean = false // If true, tail points down; if false, tail points up
   ): void {
     ctx.beginPath();
 
-    const tailY = markerCoordinates.y; // Align tail with marker center
+    // Calculate where tail should connect to bubble and where it should point to
+    const tailX = markerCoordinates.x;
+    const tailXClamped = Math.max(
+      x + borderRadius + tailSize,
+      Math.min(tailX, x + width - borderRadius - tailSize)
+    );
 
-    if (isLeftSide) {
-      // When bubble is on LEFT side of touchpoint, tail points RIGHT
-      // Start from top-left corner
+    // Calculate where tail tip should end (at edge of marker, not center)
+    const tailTipY = tailAtTop
+      ? markerCoordinates.y + markerRadius  // Point to bottom edge of marker when bubble is below
+      : markerCoordinates.y - markerRadius; // Point to top edge of marker when bubble is above
+
+    if (tailAtTop) {
+      // Bubble is below marker - tail points UP to bottom edge of marker
       ctx.moveTo(x + borderRadius, y);
 
-      // Top edge and top-right corner
+      // Top edge up to tail
+      ctx.lineTo(tailXClamped - tailSize, y);
+
+      // Draw tail pointing up to bottom edge of marker (not center)
+      ctx.lineTo(tailX, tailTipY);
+      ctx.lineTo(tailXClamped + tailSize, y);
+
+      // Continue top edge and corners
       ctx.lineTo(x + width - borderRadius, y);
       ctx.quadraticCurveTo(x + width, y, x + width, y + borderRadius);
 
-      // Right edge with tail
-      const bubbleRight = x + width;
-      const tailYClamped = Math.max(y + borderRadius + tailSize, Math.min(tailY, y + height - borderRadius - tailSize));
+      // Right edge
+      ctx.lineTo(x + width, y + height - borderRadius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - borderRadius, y + height);
 
-      // Draw right edge down to tail start
-      ctx.lineTo(bubbleRight, tailYClamped - tailSize);
-      // Draw tail pointing right to marker
-      ctx.lineTo(bubbleRight + tailSize, tailYClamped);
-      ctx.lineTo(bubbleRight, tailYClamped + tailSize);
-
-      // Continue right edge and bottom-right corner
-      ctx.lineTo(bubbleRight, y + height - borderRadius);
-      ctx.quadraticCurveTo(bubbleRight, y + height, bubbleRight - borderRadius, y + height);
-
-      // Bottom edge and bottom-left corner
+      // Bottom edge
       ctx.lineTo(x + borderRadius, y + height);
       ctx.quadraticCurveTo(x, y + height, x, y + height - borderRadius);
 
-      // Left edge and close path
+      // Left edge
       ctx.lineTo(x, y + borderRadius);
       ctx.quadraticCurveTo(x, y, x + borderRadius, y);
-
     } else {
-      // When bubble is on RIGHT side of touchpoint, tail points LEFT
-      // Start from top-left corner
+      // Bubble is above marker - tail points DOWN to top edge of marker
       ctx.moveTo(x + borderRadius, y);
 
       // Top edge and top-right corner
@@ -436,19 +447,18 @@ export class ScreenshotService {
       ctx.lineTo(x + width, y + height - borderRadius);
       ctx.quadraticCurveTo(x + width, y + height, x + width - borderRadius, y + height);
 
-      // Bottom edge and bottom-left corner
+      // Bottom edge up to tail
+      ctx.lineTo(tailXClamped + tailSize, y + height);
+
+      // Draw tail pointing down to top edge of marker (not center)
+      ctx.lineTo(tailX, tailTipY);
+      ctx.lineTo(tailXClamped - tailSize, y + height);
+
+      // Continue bottom edge and bottom-left corner
       ctx.lineTo(x + borderRadius, y + height);
       ctx.quadraticCurveTo(x, y + height, x, y + height - borderRadius);
 
-      // Left edge with tail
-      const tailYClamped = Math.max(y + borderRadius + tailSize, Math.min(tailY, y + height - borderRadius - tailSize));
-
-      ctx.lineTo(x, tailYClamped + tailSize);
-      // Draw tail pointing left to marker
-      ctx.lineTo(x - tailSize, tailYClamped);
-      ctx.lineTo(x, tailYClamped - tailSize);
-
-      // Continue left edge and close path
+      // Left edge and top-left corner
       ctx.lineTo(x, y + borderRadius);
       ctx.quadraticCurveTo(x, y, x + borderRadius, y);
     }
@@ -458,24 +468,34 @@ export class ScreenshotService {
   }
 
   /**
-   * Wrap text to fit within maximum width
+   * Wrap text to fit within maximum width using actual canvas text measurement
    */
-  private wrapText(text: string, maxWidth: number): string[] {
+  private wrapText(
+    ctx: OffscreenCanvasRenderingContext2D,
+    text: string,
+    maxWidth: number
+  ): string[] {
     const words = text.split(' ');
     const lines: string[] = [];
     let currentLine = '';
 
     for (const word of words) {
       const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      const metrics = ctx.measureText(testLine);
 
-      // Simple character-based width estimation (more accurate would require canvas measurement)
-      if (testLine.length * 8 <= maxWidth) {
+      if (metrics.width <= maxWidth) {
         currentLine = testLine;
       } else {
         if (currentLine) {
           lines.push(currentLine);
         }
         currentLine = word;
+
+        // Check if single word is too long
+        if (ctx.measureText(word).width > maxWidth) {
+          // Word is too long, it will overflow but at least it's on its own line
+          console.warn('Word too long to fit:', word);
+        }
       }
     }
 

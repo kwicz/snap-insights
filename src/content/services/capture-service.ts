@@ -40,6 +40,7 @@ export class CaptureService {
         data: {
           coordinates: options.coordinates,
           selectedIcon: options.selectedIcon,
+          devicePixelRatio: window.devicePixelRatio || 1,
         },
       } as any);
 
@@ -89,6 +90,7 @@ export class CaptureService {
           coordinates: options.coordinates,
           selectedIcon: options.selectedIcon,
           annotation: options.annotation,
+          devicePixelRatio: window.devicePixelRatio || 1,
         },
       } as any);
 
@@ -139,6 +141,7 @@ export class CaptureService {
           coordinates: options.coordinates,
           selectedIcon: options.selectedIcon,
           transcription: options.transcription,
+          devicePixelRatio: window.devicePixelRatio || 1,
         },
       } as any);
 
@@ -188,6 +191,7 @@ export class CaptureService {
           coordinates: options.coordinates,
           selectedIcon: options.selectedIcon,
           mode: 'journey',
+          devicePixelRatio: window.devicePixelRatio || 1,
         },
       } as any, { timeout: 2000, retries: 1 });
 

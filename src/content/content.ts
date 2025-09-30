@@ -360,9 +360,9 @@ function showAnnotationDialog(coordinates: { x: number; y: number }): void {
         style="width: 100%; height: 100px; border: 1px solid #d1d5db; border-radius: 6px; padding: 12px; font-family: inherit; font-size: 14px; resize: vertical; outline: none;"
       ></textarea>
     </div>
-    <div style="padding: 20px; display: flex; gap: 12px; justify-content: flex-end;">
-      <button id="cancel-annotation" style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer; font-family: inherit;">Cancel</button>
-      <button id="save-annotation" type="button" style="padding: 13px 14px 14px; background: #0277c0; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; pointer-events: auto;">Save</button>
+    <div style="padding: 20px; display: flex; gap: 12px; justify-content: center; flex-direction: row-reverse;">
+      <button id="cancel-annotation" style="padding: 12px 24px; border: none; background: white; color: #0277c0; border-radius: 14px; cursor: pointer; font-family: 'League Spartan', sans-serif; font-size: 15px; font-weight: 800; transition: all 0.2s ease;" onmouseover="this.style.background='#dfedff'; this.style.borderColor='#dfedff';" onmouseout="this.style.background='white'; this.style.borderColor='white';">Cancel</button>
+      <button id="save-annotation" type="button" style="padding: 12px 24px; background: #0277c0; color: white; border: none; border-radius: 14px; cursor: pointer; font-family: 'League Spartan', sans-serif; font-size: 15px; font-weight: 800; pointer-events: auto; transition: all 0.2s ease;">Save</button>
     </div>
   `;
 
@@ -488,6 +488,14 @@ async function captureScreenshotWithAnnotation(
   annotation: string
 ): Promise<void> {
   try {
+    // Debug: Log coordinates and screen info
+    console.log('🔧 ANNOTATION CAPTURE DEBUG:', {
+      coordinates,
+      annotation,
+      screenWidth: window.innerWidth,
+      screenHeight: window.innerHeight,
+      isRightSide: coordinates.x > window.innerWidth / 2
+    });
 
     // Check dialogs before showing marker
     const dialogsBeforeMarker = document.querySelectorAll('.insight-clip-input-dialog');
@@ -501,7 +509,6 @@ async function captureScreenshotWithAnnotation(
 
     // Wait a brief moment for the marker to render
     await new Promise((resolve) => setTimeout(resolve, 100));
-
 
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
@@ -673,9 +680,9 @@ async function showTranscriptionDialog(captureCoordinates: {
         <textarea id="transcription-text-display" style="padding: 12px 12px 12px 32px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; min-height: 120px; font-size: 14px; color: #374151; white-space: pre-wrap; width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit;" placeholder="Start speaking to record your thoughts..."></textarea>
       </div>
     </div>
-    <div style="padding: 20px; display: flex; gap: 12px; justify-content: flex-end;">
-      <button id="cancel-transcription" style="padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer; font-family: inherit;">Cancel</button>
-      <button id="save-transcription" type="button" style="padding: 13px 14px 14px; background: #0277c0; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; pointer-events: auto;">Save</button>
+    <div style="padding: 20px; display: flex; gap: 12px; justify-content: center; flex-direction: row-reverse;">
+      <button id="cancel-transcription" style="padding: 12px 24px; border: none; background: white; color: #0277c0; border-radius: 14px; cursor: pointer; font-family: 'League Spartan', sans-serif; font-size: 15px; font-weight: 800; transition: all 0.2s ease;" onmouseover="this.style.background='#dfedff'; this.style.borderColor='#dfedff';" onmouseout="this.style.background='white'; this.style.borderColor='white';">Cancel</button>
+      <button id="save-transcription" type="button" style="padding: 12px 24px; background: #0277c0; color: white; border: none; border-radius: 14px; cursor: pointer; font-family: 'League Spartan', sans-serif; font-size: 15px; font-weight: 800; pointer-events: auto; transition: all 0.2s ease;">Save</button>
     </div>
     <style>
       @keyframes pulse {
