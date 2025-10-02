@@ -310,6 +310,7 @@ body {
   padding: 4px;
   border: none;
   outline: none;
+  position: relative;
 }
 
 .icon-option:hover {

@@ -233,7 +233,7 @@ class SidebarManager {
       flex-direction: column;
       align-items: center;
       padding: 0;
-      overflow: hidden;
+      overflow: visible;
       transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       height: 60px;
     `;
@@ -416,18 +416,23 @@ class SidebarManager {
     const style = document.createElement('style');
     style.textContent = `
       .sidebar-tooltip {
-        position: fixed;
-        background: rgba(0, 0, 0, 0.9);
+        position: absolute;
+        right: calc(100% + 12px);
+        top: 50%;
+        transform: translateY(-50%);
+        background: #0277c0;
         color: white;
         padding: 8px 14px;
         border-radius: 6px;
-        font-size: 12px;
+        font-size: 10px;
+        font-weight: 600;
         font-family: 'League Spartan', -apple-system, BlinkMacSystemFont, sans-serif;
+        text-transform: uppercase;
         white-space: nowrap;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.2s ease;
-        z-index: 1000000;
+        z-index: 1000001;
       }
 
       .sidebar-tooltip::after {
@@ -436,7 +441,7 @@ class SidebarManager {
         right: -4px;
         top: 50%;
         transform: translateY(-50%);
-        border-left: 4px solid rgba(0, 0, 0, 0.9);
+        border-left: 4px solid #0277c0;
         border-top: 4px solid transparent;
         border-bottom: 4px solid transparent;
       }
@@ -507,12 +512,6 @@ class SidebarManager {
         button.style.background = 'rgba(255, 255, 255, 0.1)';
       }
       button.style.transform = 'scale(1.05)';
-
-      // Position tooltip to the left of the button
-      const rect = button.getBoundingClientRect();
-      tooltip.style.top = `${rect.top + rect.height / 2}px`;
-      tooltip.style.left = `${rect.left - 8}px`;
-      tooltip.style.transform = 'translateX(-100%) translateY(-50%)';
       tooltip.style.opacity = '1';
     });
 
