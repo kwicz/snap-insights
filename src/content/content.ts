@@ -685,6 +685,9 @@ async function showTranscriptionDialog(captureCoordinates: {
   y: number;
 }): Promise<void> {
 
+  // Reset transcription text for new recording
+  transcriptionText = '';
+
   // Check existing dialogs before creating new one
   const existingDialogs = document.querySelectorAll('.insight-clip-input-dialog');
 
@@ -793,26 +796,22 @@ async function showTranscriptionDialog(captureCoordinates: {
         };
 
         recognition.onresult = (event: any) => {
-          let finalTranscript = '';
           let interimTranscript = '';
 
+          // Only process NEW results starting from resultIndex
           for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
-              finalTranscript += transcript + ' ';
+              // Append final result to our accumulated transcript
+              transcriptionText += transcript + ' ';
             } else {
+              // Collect interim results
               interimTranscript += transcript;
             }
           }
 
-          // Update the text display with both final and interim results
-          const currentText = textDisplay.value;
-          const lastFinalIndex = currentText.lastIndexOf(' ') + 1;
-          textDisplay.value =
-            currentText.substring(0, lastFinalIndex) +
-            finalTranscript +
-            interimTranscript;
-          transcriptionText = textDisplay.value;
+          // Update the text display with accumulated final + current interim results
+          textDisplay.value = transcriptionText + interimTranscript;
         };
 
         recognition.onerror = (event: any) => {
