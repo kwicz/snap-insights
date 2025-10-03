@@ -236,6 +236,14 @@ function showPersistentClickFeedback(coordinates: {
   x: number;
   y: number;
 }): HTMLElement {
+  // Clean up any existing markers first to prevent duplicates
+  const existingMarkers = document.querySelectorAll('.snapinsights-click-marker');
+  existingMarkers.forEach(existingMarker => {
+    if (existingMarker.parentNode) {
+      existingMarker.parentNode.removeChild(existingMarker);
+    }
+  });
+
   const marker = document.createElement('div');
   marker.className = 'snapinsights-click-marker';
 
@@ -553,19 +561,8 @@ async function captureScreenshotWithAnnotation(
       isRightSide: coordinates.x > window.innerWidth / 2
     });
 
-    // Check dialogs before showing marker
-    const dialogsBeforeMarker = document.querySelectorAll('.insight-clip-input-dialog');
-
-    // Show the touchpoint marker at click location BEFORE taking screenshot
-    // This ensures the touchpoint is visible in the captured image (like journey mode)
-    const marker = showPersistentClickFeedback(coordinates);
-
-    // Check dialogs after showing marker
-    const dialogsAfterMarker = document.querySelectorAll('.insight-clip-input-dialog');
-
-    // Wait a brief moment for the marker to render
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
+    // Don't show marker here - the background service will draw it on the canvas
+    // This prevents double markers in the final screenshot
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
       data: {
@@ -574,14 +571,6 @@ async function captureScreenshotWithAnnotation(
         annotation,
       },
     });
-
-
-    // Remove the marker after screenshot is captured
-    setTimeout(() => {
-      if (marker && marker.parentNode) {
-        marker.parentNode.removeChild(marker);
-      }
-    }, 500);
 
     if (response.success && response.dataUrl) {
       // Save screenshot with annotation
@@ -1011,13 +1000,8 @@ async function captureScreenshotWithTranscription(
       return;
     }
 
-    // Show the touchpoint marker at click location BEFORE taking screenshot
-    // This ensures the touchpoint is visible in the captured image (like journey mode)
-    const marker = showPersistentClickFeedback(coordinates);
-
-    // Wait a brief moment for the marker to render
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
+    // Don't show marker here - the background service will draw it on the canvas
+    // This prevents double markers in the final screenshot
     const response = await chrome.runtime.sendMessage({
       type: 'CAPTURE_SCREENSHOT',
       data: {
@@ -1026,13 +1010,6 @@ async function captureScreenshotWithTranscription(
         transcription,
       },
     });
-
-    // Remove the marker after screenshot is captured
-    setTimeout(() => {
-      if (marker && marker.parentNode) {
-        marker.parentNode.removeChild(marker);
-      }
-    }, 500);
 
     if (response.success && response.dataUrl) {
       // Save screenshot with transcription
