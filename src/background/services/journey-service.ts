@@ -32,7 +32,26 @@ export class JourneyService {
       // Get current journey state
       const currentState = await this.getJourneyState();
 
-      if (!currentState.journeyState?.isActive) {
+      backgroundLogger.debug('Current journey state when adding screenshot:', {
+        success: currentState.success,
+        hasJourneyState: !!currentState.journeyState,
+        isActive: currentState.journeyState?.isActive,
+        screenshotCount: currentState.journeyState?.screenshots?.length,
+      });
+
+      if (!currentState.success) {
+        backgroundLogger.error('Failed to retrieve journey state');
+        return {
+          success: false,
+          error: 'Failed to retrieve journey state',
+        };
+      }
+
+      if (!currentState.journeyState || !currentState.journeyState.isActive) {
+        backgroundLogger.warn('No active journey found', {
+          hasJourneyState: !!currentState.journeyState,
+          isActive: currentState.journeyState?.isActive,
+        });
         return {
           success: false,
           error: 'No active journey to add screenshot to',

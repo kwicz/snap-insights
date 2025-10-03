@@ -12,6 +12,26 @@ let selectedIcon: 'light' | 'blue' | 'dark' = 'blue';
 let isProcessingJourneyClick = false; // Flag to prevent infinite loops in journey mode
 let lastJourneyScreenshotTime = 0; // Rate limiting for journey screenshots
 
+// Initialize extension state from storage
+(async () => {
+  try {
+    const result = await chrome.storage.local.get(['currentMode', 'selectedIcon']);
+    if (result.currentMode) {
+      currentMode = result.currentMode;
+      extensionActive = true;
+      console.log('🔄 Restored extension state from storage:', {
+        mode: currentMode,
+        icon: result.selectedIcon,
+      });
+    }
+    if (result.selectedIcon) {
+      selectedIcon = result.selectedIcon;
+    }
+  } catch (error) {
+    console.error('Failed to initialize extension state:', error);
+  }
+})();
+
 // Sidebar instance
 let sidebarManager: SidebarManager | null = null;
 
