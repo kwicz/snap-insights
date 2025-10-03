@@ -110,18 +110,10 @@ export class StorageService {
       const journeyState = result[JOURNEY_STORAGE_KEY];
 
       if (!journeyState) {
-        // Return default journey state if none exists
-        const defaultJourneyState: JourneyState = {
-          isActive: false,
-          startTime: undefined,
-          endTime: undefined,
-          screenshots: [],
-        };
-
-        backgroundLogger.info('No journey state found, returning default');
+        backgroundLogger.info('No journey state found in storage');
         return {
           success: true,
-          journeyState: defaultJourneyState,
+          journeyState: undefined,
         };
       }
 

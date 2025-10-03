@@ -1,7 +1,7 @@
 .tab-nav {
   display: flex;
   background: var(--primary-100);
-  height: var(--tab-height);
+  height: 40px;
 }
 
 .tab-button {
@@ -17,8 +17,9 @@
   gap: 6px;
   transition: all var(--transition-base);
   color: white;
-  border-radius: 14px 14px 0 0;
+  border-radius: 100px 100px 0 0;
   position: relative;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tab-button.active {

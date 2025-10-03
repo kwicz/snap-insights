@@ -225,14 +225,41 @@ export class JourneyService {
       // Get journey state
       const currentState = await this.getJourneyState();
 
-      if (!currentState.journeyState || currentState.journeyState.screenshots.length === 0) {
+      backgroundLogger.debug('Current journey state:', currentState);
+
+      if (!currentState.success) {
+        return {
+          success: false,
+          error: currentState.error || 'Failed to retrieve journey state',
+        };
+      }
+
+      // Check if journey state exists and has screenshots
+      const journeyState = currentState.journeyState;
+
+      if (!journeyState) {
+        backgroundLogger.warn('No journey state found');
+        return {
+          success: false,
+          error: 'No active journey found',
+        };
+      }
+
+      if (!journeyState.isActive && journeyState.screenshots.length === 0) {
+        backgroundLogger.warn('Journey is not active and has no screenshots');
         return {
           success: false,
           error: 'No journey screenshots to save',
         };
       }
 
-      const { journeyState } = currentState;
+      if (journeyState.screenshots.length === 0) {
+        backgroundLogger.warn('Journey has no screenshots');
+        return {
+          success: false,
+          error: 'No journey screenshots to save. Take some screenshots first.',
+        };
+      }
       const downloadIds: number[] = [];
 
       // Generate folder name with journey info and primary domain
@@ -358,15 +385,11 @@ export class JourneyService {
       const result = await chrome.storage.local.get(STORAGE_KEY_JOURNEY);
       const journeyState = result[STORAGE_KEY_JOURNEY];
 
+      // Return undefined if no journey state exists in storage
+      // Don't create a fake empty state
       return {
         success: true,
-        journeyState: journeyState || {
-          isActive: false,
-          startTime: undefined,
-          endTime: undefined,
-          screenshots: [],
-          lastScreenshotTime: undefined,
-        },
+        journeyState: journeyState || undefined,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExtensionSettings } from '@/types';
 import './Popup.css';
 
 // Components
 import TabNav, { TabIcons } from '@/components/TabNav';
 import TheGoodLogo from '@/components/thegoodlogo';
+import Toast from '@/components/Toast';
 
 // Hooks
 import { useKeyboardNavigation, NavigationItem } from '@/shared/hooks/useKeyboardNavigation';
@@ -13,14 +14,17 @@ import { eventBus } from '@/shared/services/event-bus';
 export interface PopupState {
   settings: ExtensionSettings;
   isLoading: boolean;
-  error: string | null;
-  activeTab: 'moment' | 'journey';
+  activeTab: 'modes' | 'settings';
   activeMode: 'snap' | 'annotate' | 'transcribe' | 'start' | null;
   selectedIcon: 'light' | 'blue' | 'dark';
   stats: {
     totalScreenshots: number;
     lastCaptured: number | null;
   };
+  toast: {
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null;
 }
 
 const DEFAULT_SETTINGS: ExtensionSettings = {
@@ -67,14 +71,14 @@ export const Popup: React.FC = () => {
   const [state, setState] = useState<PopupState>({
     settings: DEFAULT_SETTINGS,
     isLoading: false,
-    error: null,
-    activeTab: 'moment', // Default to moment tab
+    activeTab: 'modes', // Default to modes tab
     activeMode: null, // No mode selected by default
     selectedIcon: 'blue', // Default to blue touchpoint
     stats: {
       totalScreenshots: 0,
       lastCaptured: null,
     },
+    toast: null,
   });
 
   // Keyboard navigation setup
@@ -90,17 +94,32 @@ export const Popup: React.FC = () => {
     autoFocus: true,
   });
 
+  // Toast helper
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setState((prev) => ({
+      ...prev,
+      toast: { message, type },
+    }));
+  };
+
+  const hideToast = () => {
+    setState((prev) => ({
+      ...prev,
+      toast: null,
+    }));
+  };
+
   // Tab definitions
   const tabs = [
     {
-      id: 'moment',
-      label: 'Snap a moment',
+      id: 'modes',
+      label: 'Modes',
       icon: TabIcons.Snap,
     },
     {
-      id: 'journey',
-      label: 'Snap a journey',
-      icon: TabIcons.Start,
+      id: 'settings',
+      label: 'Settings',
+      icon: TabIcons.Journey,
     },
   ];
 
@@ -111,21 +130,22 @@ export const Popup: React.FC = () => {
     // Add tab navigation items
     items.push(
       {
-        id: 'tab-moment',
-        ariaLabel: 'Snap a moment tab',
+        id: 'tab-modes',
+        ariaLabel: 'Modes tab',
         role: 'tab',
         group: 'tabs'
       },
       {
-        id: 'tab-journey',
-        ariaLabel: 'Snap a journey tab',
+        id: 'tab-settings',
+        ariaLabel: 'Settings tab',
         role: 'tab',
         group: 'tabs'
       }
     );
 
     // Add mode buttons based on active tab
-    if (state.activeTab === 'moment') {
+    if (state.activeTab === 'modes') {
+      // Snap a moment buttons
       items.push(
         {
           id: 'mode-snap',
@@ -149,8 +169,8 @@ export const Popup: React.FC = () => {
           disabled: state.isLoading
         }
       );
-    } else if (state.activeTab === 'journey') {
-      // Only show start button if journey is not active
+
+      // Snap a journey button
       if (!state.activeMode) {
         items.push({
           id: 'mode-start',
@@ -159,7 +179,7 @@ export const Popup: React.FC = () => {
           group: 'modes',
           disabled: state.isLoading
         });
-      } else {
+      } else if (state.activeMode === 'start') {
         // Only show save button if journey is active
         items.push({
           id: 'save-journey',
@@ -169,29 +189,29 @@ export const Popup: React.FC = () => {
           disabled: state.isLoading
         });
       }
+    } else if (state.activeTab === 'settings') {
+      // Add icon selection items only on settings tab
+      items.push(
+        {
+          id: 'icon-light',
+          ariaLabel: 'Light touchpoint icon',
+          role: 'button',
+          group: 'icons'
+        },
+        {
+          id: 'icon-blue',
+          ariaLabel: 'Blue touchpoint icon',
+          role: 'button',
+          group: 'icons'
+        },
+        {
+          id: 'icon-dark',
+          ariaLabel: 'Dark touchpoint icon',
+          role: 'button',
+          group: 'icons'
+        }
+      );
     }
-
-    // Add icon selection items
-    items.push(
-      {
-        id: 'icon-light',
-        ariaLabel: 'Light touchpoint icon',
-        role: 'button',
-        group: 'icons'
-      },
-      {
-        id: 'icon-blue',
-        ariaLabel: 'Blue touchpoint icon',
-        role: 'button',
-        group: 'icons'
-      },
-      {
-        id: 'icon-dark',
-        ariaLabel: 'Dark touchpoint icon',
-        role: 'button',
-        group: 'icons'
-      }
-    );
 
     setNavigationItems(items);
   }, [state.activeTab, state.activeMode, state.isLoading]);
@@ -202,10 +222,10 @@ export const Popup: React.FC = () => {
       const { itemId } = data;
 
       // Handle tab navigation
-      if (itemId === 'tab-moment') {
-        handleTabChange('moment');
-      } else if (itemId === 'tab-journey') {
-        handleTabChange('journey');
+      if (itemId === 'tab-modes') {
+        handleTabChange('modes');
+      } else if (itemId === 'tab-settings') {
+        handleTabChange('settings');
       }
       // Handle mode selection
       else if (itemId === 'mode-snap') {
@@ -267,8 +287,8 @@ export const Popup: React.FC = () => {
         const mode = result.currentMode || null;
         const icon = result.selectedIcon || 'blue';
 
-        // Determine which tab should be active based on the current mode
-        const activeTab = mode === 'start' ? 'journey' : 'moment';
+        // Default to modes tab (no need to change based on mode anymore)
+        const activeTab = 'modes';
 
         setState((prev) => ({
           ...prev,
@@ -282,51 +302,54 @@ export const Popup: React.FC = () => {
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          error: `Failed to load extension state: ${
+        }));
+        showToast(
+          `Failed to load extension state: ${
             error instanceof Error ? error.message : 'Unknown error'
           }`,
-        }));
+          'error'
+        );
       }
     };
 
     loadExtensionState();
 
-    // Close popup when clicking outside
-    const handleDocumentClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      // Check if click is outside the popup container
-      if (!target.closest('.popup')) {
-        window.close();
-      }
-    };
+    // Close popup when clicking outside - DISABLED FOR DEBUGGING
+    // const handleDocumentClick = (event: MouseEvent) => {
+    //   const target = event.target as HTMLElement;
+    //   // Check if click is outside the popup container
+    //   if (!target.closest('.popup')) {
+    //     window.close();
+    //   }
+    // };
 
-    // Use a slight delay to avoid immediate closure
-    setTimeout(() => {
-      document.addEventListener('click', handleDocumentClick);
-    }, 100);
+    // // Use a slight delay to avoid immediate closure
+    // setTimeout(() => {
+    //   document.addEventListener('click', handleDocumentClick);
+    // }, 100);
 
-    const handleWindowBlur = () => {
-      // Chrome automatically closes popup on blur, but we can force it
-      setTimeout(() => {
-        // Only close if the popup truly lost focus
-        if (!document.hasFocus()) {
-          window.close();
-        }
-      }, 100);
-    };
+    // const handleWindowBlur = () => {
+    //   // Chrome automatically closes popup on blur, but we can force it
+    //   setTimeout(() => {
+    //     // Only close if the popup truly lost focus
+    //     if (!document.hasFocus()) {
+    //       window.close();
+    //     }
+    //   }, 100);
+    // };
 
-    window.addEventListener('blur', handleWindowBlur);
+    // window.addEventListener('blur', handleWindowBlur);
 
-    return () => {
-      window.removeEventListener('blur', handleWindowBlur);
-      document.removeEventListener('click', handleDocumentClick);
-    };
+    // return () => {
+    //   window.removeEventListener('blur', handleWindowBlur);
+    //   document.removeEventListener('click', handleDocumentClick);
+    // };
   }, []);
 
   // Load journey stats when journey mode is active
   useEffect(() => {
     const loadJourneyStats = async () => {
-      if (state.activeTab === 'journey' && state.activeMode === 'start') {
+      if (state.activeMode === 'start') {
         try {
           const response = await chrome.runtime.sendMessage({
             type: 'GET_JOURNEY_STATS',
@@ -352,7 +375,7 @@ export const Popup: React.FC = () => {
 
     // Set up interval to periodically update stats when journey is active
     let statsInterval: number | null = null;
-    if (state.activeTab === 'journey' && state.activeMode === 'start') {
+    if (state.activeMode === 'start') {
       statsInterval = setInterval(loadJourneyStats, 5000); // Update every 5 seconds
     }
 
@@ -361,18 +384,13 @@ export const Popup: React.FC = () => {
         clearInterval(statsInterval);
       }
     };
-  }, [state.activeTab, state.activeMode]);
+  }, [state.activeMode]);
 
   const handleTabChange = (tabId: string) => {
     setState((prev) => ({
       ...prev,
-      activeTab: tabId as 'moment' | 'journey',
-      activeMode: null, // Reset mode when switching tabs
-      error: null,
+      activeTab: tabId as 'modes' | 'settings',
     }));
-
-    // Also clear the stored mode when switching tabs
-    chrome.storage.local.set({ currentMode: null }).catch(console.error);
   };
 
   const handleModeSelect = async (
@@ -381,7 +399,6 @@ export const Popup: React.FC = () => {
     setState((prev) => ({
       ...prev,
       activeMode: mode,
-      error: null,
     }));
 
     // Save the selected mode to storage immediately
@@ -402,7 +419,8 @@ export const Popup: React.FC = () => {
           });
 
           if (!response.success) {
-            throw new Error(response.error || 'Failed to start journey');
+            const errorMsg = typeof response.error === 'string' ? response.error : 'Failed to start journey';
+            throw new Error(errorMsg);
           }
         } else {
           // Activate extension with selected mode (snap, annotate, transcribe)
@@ -414,8 +432,12 @@ export const Popup: React.FC = () => {
             },
           });
 
-          if (!response.success) {
-            throw new Error(response.error || 'Failed to activate extension');
+          if (!response || !response.success) {
+            console.error('Activation failed with response:', response);
+            const errorMsg = response?.error && typeof response.error === 'string'
+              ? response.error
+              : 'Failed to activate extension';
+            throw new Error(errorMsg);
           }
         }
       } else {
@@ -428,7 +450,8 @@ export const Popup: React.FC = () => {
           });
 
           if (!response.success) {
-            throw new Error(response.error || 'Failed to stop journey');
+            const errorMsg = typeof response.error === 'string' ? response.error : 'Failed to stop journey';
+            throw new Error(errorMsg);
           }
         } else {
           // Deactivate extension
@@ -437,7 +460,8 @@ export const Popup: React.FC = () => {
           });
 
           if (!response.success) {
-            throw new Error(response.error || 'Failed to deactivate extension');
+            const errorMsg = typeof response.error === 'string' ? response.error : 'Failed to deactivate extension';
+            throw new Error(errorMsg);
           }
         }
       }
@@ -445,9 +469,10 @@ export const Popup: React.FC = () => {
       // If the error is about system pages, keep the popup open to show the error
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
+      showToast(errorMessage, 'error');
+
       setState((prev) => ({
         ...prev,
-        error: errorMessage,
         activeMode: null, // Reset mode on error
       }));
 
@@ -496,7 +521,6 @@ export const Popup: React.FC = () => {
     setState((prev) => ({
       ...prev,
       isLoading: true,
-      error: null,
     }));
 
     try {
@@ -507,25 +531,38 @@ export const Popup: React.FC = () => {
       });
 
       if (!response.success) {
-        throw new Error(response.error || 'Failed to save journey collection');
+        const errorMsg = typeof response.error === 'string' ? response.error : 'Failed to save journey collection';
+        throw new Error(errorMsg);
       }
 
-      // Show success message
+      // Journey collection saved successfully - now deactivate the mode
+      await chrome.storage.local.set({ currentMode: null });
+      const deactivateResponse = await chrome.runtime.sendMessage({ type: 'DEACTIVATE_EXTENSION' });
+
+      if (!deactivateResponse?.success) {
+        console.warn('Failed to deactivate extension after save:', deactivateResponse?.error);
+      }
+
+      // Update UI to reflect deactivation
       setState((prev) => ({
         ...prev,
+        activeMode: null,
         isLoading: false,
-        error: null,
       }));
 
-      // Journey collection saved successfully
+      showToast('Journey saved successfully!', 'success');
     } catch (error) {
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: `Failed to save journey: ${
+      }));
+
+      showToast(
+        `Failed to save journey: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`,
-      }));
+        'error'
+      );
     }
   };
 
@@ -564,17 +601,14 @@ export const Popup: React.FC = () => {
       />
 
       <main className='popup-body' role='main' aria-labelledby='main-title'>
-        {state.error && (
-          <div role='alert' aria-live='assertive' className='error-message'>
-            {state.error}
-          </div>
-        )}
-
-        {state.activeTab === 'moment' && (
-          <div id='panel-moment' role='tabpanel' aria-labelledby='tab-moment'>
+        {state.activeTab === 'modes' && (
+          <div id='panel-modes' role='tabpanel' aria-labelledby='tab-modes' className='modes-container'>
             <div className='mode-selection'>
-              <h2 className='section-title'>Choose your mode:</h2>
-              <div className='mode-grid' role='group' aria-label='Mode selection'>
+              <h2 className='section-title'>Snap a moment</h2>
+              <div className='mode-footer-text'>
+                Alt + Click to Snap
+              </div>
+              <div className='mode-grid' role='group' aria-label='Moment mode selection'>
                 <button
                   id='mode-snap'
                   className={`mode-button snap-button ${
@@ -640,66 +674,13 @@ export const Popup: React.FC = () => {
               </div>
             </div>
 
-            <div className='icon-selection'>
-              <h2 className='section-title'>Choose your icon:</h2>
-              <div className='icon-selection-container'>
-                <div className='icon-grid' role='group' aria-label='Icon selection'>
-                  <button
-                    id='icon-light'
-                    className={`icon-option ${
-                      state.selectedIcon === 'light' ? 'selected' : ''
-                    }`}
-                    onClick={() => handleIconSelect('light')}
-                    aria-pressed={state.selectedIcon === 'light'}
-                    aria-label='Select light touchpoint icon'
-                  >
-                    <img
-                      src='../assets/icons/touchpoint-light.png'
-                      alt='Light Touchpoint'
-                    />
-                  </button>
-                  <button
-                    id='icon-blue'
-                    className={`icon-option ${
-                      state.selectedIcon === 'blue' ? 'selected' : ''
-                    }`}
-                    onClick={() => handleIconSelect('blue')}
-                    aria-pressed={state.selectedIcon === 'blue'}
-                    aria-label='Select blue touchpoint icon'
-                  >
-                    <img
-                      src='../assets/icons/touchpoint-blue.png'
-                      alt='Blue Touchpoint'
-                    />
-                  </button>
-                  <button
-                    id='icon-dark'
-                    className={`icon-option ${
-                      state.selectedIcon === 'dark' ? 'selected' : ''
-                    }`}
-                    onClick={() => handleIconSelect('dark')}
-                    aria-pressed={state.selectedIcon === 'dark'}
-                    aria-label='Select dark touchpoint icon'
-                  >
-                    <img
-                      src='../assets/icons/touchpoint-dark.png'
-                      alt='Dark Touchpoint'
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {state.activeTab === 'journey' && (
-          <div id='panel-journey' role='tabpanel' aria-labelledby='tab-journey'>
-            {/* Journey progress tracking - removed from UI but totalScreenshots is still tracked internally */}
-
             <div className='mode-selection'>
-              <h2 className='section-title'>Record your journey:</h2>
+              <h2 className='section-title'>Snap a journey</h2>
+              <div className='mode-footer-text'>
+                Snap as you go, save when you're ready
+              </div>
               <div className='mode-grid' role='group' aria-label='Journey controls'>
-                {!state.activeMode ? (
+                {!state.activeMode || state.activeMode !== 'start' ? (
                   <button
                     id='mode-start'
                     className='mode-button start-button'
@@ -709,9 +690,9 @@ export const Popup: React.FC = () => {
                     aria-describedby='start-description'
                   >
                     <div className='mode-icon'>{TabIcons.Start}</div>
-                    <span className='mode-label'>Start</span>
+                    <span className='mode-label'>Embark</span>
                     <span id='start-description' className='sr-only'>
-                      Start journey recording
+                      Embark on a journey
                     </span>
                   </button>
                 ) : (
@@ -731,9 +712,13 @@ export const Popup: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
+        )}
 
+        {state.activeTab === 'settings' && (
+          <div id='panel-settings' role='tabpanel' aria-labelledby='tab-settings'>
             <div className='icon-selection'>
-              <h2 className='section-title'>Choose your icon:</h2>
+              <h2 className='section-title'>Choose your touchpoint:</h2>
               <div className='icon-selection-container'>
                 <div className='icon-grid' role='group' aria-label='Icon selection'>
                   <button
@@ -785,13 +770,13 @@ export const Popup: React.FC = () => {
         )}
       </main>
 
-      <footer className='footer-section' role='contentinfo'>
-        {state.activeTab === 'moment' && (
-          <div className='footer-text' aria-label='Usage instruction'>
-            Alt + Click to Snap
-          </div>
-        )}
-      </footer>
+      {state.toast && (
+        <Toast
+          message={state.toast.message}
+          type={state.toast.type}
+          onClose={hideToast}
+        />
+      )}
     </div>
   );
 };

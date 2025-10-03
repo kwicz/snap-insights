@@ -30,18 +30,6 @@ body {
   border: 0;
 }
 
-/* Accessibility - Error message styling */
-.error-message {
-  background-color: #fee2e2;
-  border: 1px solid #f87171;
-  border-radius: 4px;
-  padding: 8px 12px;
-  margin-bottom: 16px;
-  color: #b91c1c;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
 /* High contrast mode support */
 @media (prefers-contrast: high) {
   .mode-button,
@@ -204,12 +192,22 @@ body {
 }
 
 .popup-body {
-  padding: 24px;
+  padding: 16px 24px;
 }
 
 /* Mode Selection Section */
+
 .mode-selection {
-  margin-bottom: 24px;
+  margin: 20px 0;
+}
+
+.mode-footer-text {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: #a9a9a9;
+  text-align: center;
+  margin-bottom: 12px;
 }
 
 .section-title {
@@ -217,8 +215,8 @@ body {
   font-size: 18px;
   font-weight: 800;
   color: #333;
-  margin: 0 0 8px 0;
-  /* text-align: center; */
+  margin: 0;
+  text-align: center;
 }
 
 .mode-grid {
@@ -285,9 +283,13 @@ body {
 }
 
 /* Icon Selection Section */
+#panel-settings {
+  margin-top: 34px;
+}
+
 .icon-selection-container {
   margin-bottom: 24px;
-  background: #d9d9d9;
+  background: #ffffff;
   padding: 12px;
   border-radius: 14px;
 }
@@ -301,7 +303,7 @@ body {
   width: 60px;
   height: 60px;
   border-radius: 14px;
-  background: transparent;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -314,18 +316,17 @@ body {
 }
 
 .icon-option:hover {
-  /* background: rgba(255, 255, 255, 0.5); */
   background: #dfedff;
   border-color: #dfedff;
   transform: scale(1.05);
 }
 
 .icon-option.selected {
-  background: #ffffff;
+  background: #dfedff;
 }
 
 .icon-option.selected:hover {
-  background: #ffffff;
+  background: #dfedff;
 }
 
 .icon-option img {
@@ -407,7 +408,7 @@ input:checked + .toggle-slider:before {
 /* Footer Section */
 .footer-section {
   text-align: center;
-  padding-bottom: 20px;
+  padding-bottom: 8px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -416,15 +417,16 @@ input:checked + .toggle-slider:before {
 }
 
 .footer-text {
-  font-size: 14px;
-  color: #666;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: #d9d9d9;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 4px;
   margin-bottom: 8px;
 }
-
 
 /* Loading State */
 .popup--loading {
