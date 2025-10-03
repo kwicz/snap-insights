@@ -160,12 +160,12 @@ function handleClick(event: MouseEvent): void {
       break;
 
     case 'annotate':
-      showClickFeedback(coordinates);
+      // Don't show feedback here - it will be shown when screenshot is captured
       showAnnotationDialog(coordinates);
       break;
 
     case 'transcribe':
-      showClickFeedback(coordinates);
+      // Don't show feedback here - it will be shown when screenshot is captured
       startTranscription(coordinates);
       break;
   }

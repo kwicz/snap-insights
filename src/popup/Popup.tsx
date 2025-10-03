@@ -8,7 +8,10 @@ import TheGoodLogo from '@/components/thegoodlogo';
 import Toast from '@/components/Toast';
 
 // Hooks
-import { useKeyboardNavigation, NavigationItem } from '@/shared/hooks/useKeyboardNavigation';
+import {
+  useKeyboardNavigation,
+  NavigationItem,
+} from '@/shared/hooks/useKeyboardNavigation';
 import { eventBus } from '@/shared/services/event-bus';
 
 export interface PopupState {
@@ -95,7 +98,10 @@ export const Popup: React.FC = () => {
   });
 
   // Toast helper
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const showToast = (
+    message: string,
+    type: 'success' | 'error' | 'info' = 'info'
+  ) => {
     setState((prev) => ({
       ...prev,
       toast: { message, type },
@@ -133,13 +139,13 @@ export const Popup: React.FC = () => {
         id: 'tab-modes',
         ariaLabel: 'Modes tab',
         role: 'tab',
-        group: 'tabs'
+        group: 'tabs',
       },
       {
         id: 'tab-settings',
         ariaLabel: 'Settings tab',
         role: 'tab',
-        group: 'tabs'
+        group: 'tabs',
       }
     );
 
@@ -152,21 +158,21 @@ export const Popup: React.FC = () => {
           ariaLabel: 'Snap mode',
           role: 'button',
           group: 'modes',
-          disabled: state.isLoading
+          disabled: state.isLoading,
         },
         {
           id: 'mode-annotate',
           ariaLabel: 'Annotate mode',
           role: 'button',
           group: 'modes',
-          disabled: state.isLoading
+          disabled: state.isLoading,
         },
         {
           id: 'mode-transcribe',
           ariaLabel: 'Transcribe mode',
           role: 'button',
           group: 'modes',
-          disabled: state.isLoading
+          disabled: state.isLoading,
         }
       );
 
@@ -177,7 +183,7 @@ export const Popup: React.FC = () => {
           ariaLabel: 'Start journey',
           role: 'button',
           group: 'modes',
-          disabled: state.isLoading
+          disabled: state.isLoading,
         });
       } else if (state.activeMode === 'start') {
         // Only show save button if journey is active
@@ -186,7 +192,7 @@ export const Popup: React.FC = () => {
           ariaLabel: 'Save journey',
           role: 'button',
           group: 'modes',
-          disabled: state.isLoading
+          disabled: state.isLoading,
         });
       }
     } else if (state.activeTab === 'settings') {
@@ -196,19 +202,19 @@ export const Popup: React.FC = () => {
           id: 'icon-light',
           ariaLabel: 'Light touchpoint icon',
           role: 'button',
-          group: 'icons'
+          group: 'icons',
         },
         {
           id: 'icon-blue',
           ariaLabel: 'Blue touchpoint icon',
           role: 'button',
-          group: 'icons'
+          group: 'icons',
         },
         {
           id: 'icon-dark',
           ariaLabel: 'Dark touchpoint icon',
           role: 'button',
-          group: 'icons'
+          group: 'icons',
         }
       );
     }
@@ -218,7 +224,11 @@ export const Popup: React.FC = () => {
 
   // Set up keyboard navigation event handlers
   useEffect(() => {
-    const handleKeyboardActivation = (data: { itemId: string; index: number; element: HTMLElement }) => {
+    const handleKeyboardActivation = (data: {
+      itemId: string;
+      index: number;
+      element: HTMLElement;
+    }) => {
       const { itemId } = data;
 
       // Handle tab navigation
@@ -233,7 +243,9 @@ export const Popup: React.FC = () => {
       } else if (itemId === 'mode-annotate') {
         handleModeSelect(state.activeMode === 'annotate' ? null : 'annotate');
       } else if (itemId === 'mode-transcribe') {
-        handleModeSelect(state.activeMode === 'transcribe' ? null : 'transcribe');
+        handleModeSelect(
+          state.activeMode === 'transcribe' ? null : 'transcribe'
+        );
       } else if (itemId === 'mode-start') {
         handleModeSelect('start');
       } else if (itemId === 'save-journey') {
@@ -254,7 +266,10 @@ export const Popup: React.FC = () => {
       window.close();
     };
 
-    const unsubscribeActivate = eventBus.on('ui:keyboard:activate', handleKeyboardActivation);
+    const unsubscribeActivate = eventBus.on(
+      'ui:keyboard:activate',
+      handleKeyboardActivation
+    );
     const unsubscribeEscape = eventBus.on('ui:keyboard:escape', handleEscape);
 
     return () => {
@@ -419,7 +434,10 @@ export const Popup: React.FC = () => {
           });
 
           if (!response.success) {
-            const errorMsg = typeof response.error === 'string' ? response.error : 'Failed to start journey';
+            const errorMsg =
+              typeof response.error === 'string'
+                ? response.error
+                : 'Failed to start journey';
             throw new Error(errorMsg);
           }
         } else {
@@ -434,9 +452,10 @@ export const Popup: React.FC = () => {
 
           if (!response || !response.success) {
             console.error('Activation failed with response:', response);
-            const errorMsg = response?.error && typeof response.error === 'string'
-              ? response.error
-              : 'Failed to activate extension';
+            const errorMsg =
+              response?.error && typeof response.error === 'string'
+                ? response.error
+                : 'Failed to activate extension';
             throw new Error(errorMsg);
           }
         }
@@ -450,7 +469,10 @@ export const Popup: React.FC = () => {
           });
 
           if (!response.success) {
-            const errorMsg = typeof response.error === 'string' ? response.error : 'Failed to stop journey';
+            const errorMsg =
+              typeof response.error === 'string'
+                ? response.error
+                : 'Failed to stop journey';
             throw new Error(errorMsg);
           }
         } else {
@@ -460,14 +482,18 @@ export const Popup: React.FC = () => {
           });
 
           if (!response.success) {
-            const errorMsg = typeof response.error === 'string' ? response.error : 'Failed to deactivate extension';
+            const errorMsg =
+              typeof response.error === 'string'
+                ? response.error
+                : 'Failed to deactivate extension';
             throw new Error(errorMsg);
           }
         }
       }
     } catch (error) {
       // If the error is about system pages, keep the popup open to show the error
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
 
       showToast(errorMessage, 'error');
 
@@ -531,16 +557,24 @@ export const Popup: React.FC = () => {
       });
 
       if (!response.success) {
-        const errorMsg = typeof response.error === 'string' ? response.error : 'Failed to save journey collection';
+        const errorMsg =
+          typeof response.error === 'string'
+            ? response.error
+            : 'Failed to save journey collection';
         throw new Error(errorMsg);
       }
 
       // Journey collection saved successfully - now deactivate the mode
       await chrome.storage.local.set({ currentMode: null });
-      const deactivateResponse = await chrome.runtime.sendMessage({ type: 'DEACTIVATE_EXTENSION' });
+      const deactivateResponse = await chrome.runtime.sendMessage({
+        type: 'DEACTIVATE_EXTENSION',
+      });
 
       if (!deactivateResponse?.success) {
-        console.warn('Failed to deactivate extension after save:', deactivateResponse?.error);
+        console.warn(
+          'Failed to deactivate extension after save:',
+          deactivateResponse?.error
+        );
       }
 
       // Update UI to reflect deactivation
@@ -568,7 +602,11 @@ export const Popup: React.FC = () => {
 
   if (state.isLoading) {
     return (
-      <div className='popup popup--loading' role='application' aria-label='SnapInsights Extension Popup'>
+      <div
+        className='popup popup--loading'
+        role='application'
+        aria-label='SnapInsights Extension Popup'
+      >
         <div className='popup__loading' role='status' aria-live='polite'>
           <div className='popup__spinner' aria-hidden='true' />
           <span>Loading extension...</span>
@@ -578,16 +616,31 @@ export const Popup: React.FC = () => {
   }
 
   return (
-    <div className='popup' ref={keyboardNav.containerRef as React.RefObject<HTMLDivElement>} role='application' aria-label='SnapInsights Extension Popup'>
+    <div
+      className='popup'
+      ref={keyboardNav.containerRef as React.RefObject<HTMLDivElement>}
+      role='application'
+      aria-label='SnapInsights Extension Popup'
+    >
       <header className='popup-header' role='banner'>
         <div className='app-icon'>
-          <img src='../assets/icons/icon.png' alt='SnapInsights Extension Icon' />
+          <img
+            src='../assets/icons/icon.png'
+            alt='SnapInsights Extension Icon'
+          />
         </div>
         <div className='app-title-group'>
-          <h1 className='app-title' id='main-title'>SnapInsights</h1>
+          <h1 className='app-title' id='main-title'>
+            SnapInsights
+          </h1>
           <div className='header-attribution'>
             <span>Created by</span>
-            <a href='https://thegood.com/' target='_blank' rel='noopener noreferrer' className='header-logo-link'>
+            <a
+              href='https://thegood.com/'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='header-logo-link'
+            >
               <TheGoodLogo />
             </a>
           </div>
@@ -602,13 +655,20 @@ export const Popup: React.FC = () => {
 
       <main className='popup-body' role='main' aria-labelledby='main-title'>
         {state.activeTab === 'modes' && (
-          <div id='panel-modes' role='tabpanel' aria-labelledby='tab-modes' className='modes-container'>
+          <div
+            id='panel-modes'
+            role='tabpanel'
+            aria-labelledby='tab-modes'
+            className='modes-container'
+          >
             <div className='mode-selection'>
               <h2 className='section-title'>Snap a moment</h2>
-              <div className='mode-footer-text'>
-                Alt + Click to Snap
-              </div>
-              <div className='mode-grid' role='group' aria-label='Moment mode selection'>
+              <div className='mode-footer-text'>Alt + Click to Snap</div>
+              <div
+                className='mode-grid'
+                role='group'
+                aria-label='Moment mode selection'
+              >
                 <button
                   id='mode-snap'
                   className={`mode-button snap-button ${
@@ -679,7 +739,11 @@ export const Popup: React.FC = () => {
               <div className='mode-footer-text'>
                 Snap as you go, save when you're ready
               </div>
-              <div className='mode-grid' role='group' aria-label='Journey controls'>
+              <div
+                className='mode-grid'
+                role='group'
+                aria-label='Journey controls'
+              >
                 {!state.activeMode || state.activeMode !== 'start' ? (
                   <button
                     id='mode-start'
@@ -716,11 +780,19 @@ export const Popup: React.FC = () => {
         )}
 
         {state.activeTab === 'settings' && (
-          <div id='panel-settings' role='tabpanel' aria-labelledby='tab-settings'>
+          <div
+            id='panel-settings'
+            role='tabpanel'
+            aria-labelledby='tab-settings'
+          >
             <div className='icon-selection'>
-              <h2 className='section-title'>Choose your touchpoint:</h2>
+              <h2 className='section-title'>Choose your touchpoint</h2>
               <div className='icon-selection-container'>
-                <div className='icon-grid' role='group' aria-label='Icon selection'>
+                <div
+                  className='icon-grid'
+                  role='group'
+                  aria-label='Icon selection'
+                >
                   <button
                     id='icon-light'
                     className={`icon-option ${
